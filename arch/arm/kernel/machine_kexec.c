@@ -31,9 +31,6 @@ extern unsigned long kexec_boot_atags;
 
 static atomic_t waiting_for_crash_ipi;
 
-extern void rv1126_dump_cru(void);
-
-
 /*
  * Provide a dummy crash_notes definition while crash dump arrives to arm.
  * This prevents breakage of crash_notes attribute in kernel/ksysfs.c.
@@ -75,9 +72,6 @@ int machine_kexec_prepare(struct kimage *image)
 		if (header == cpu_to_be32(OF_DT_HEADER))
 			image->arch.kernel_r2 = current_segment->mem;
 	}
-	
-	rv1126_dump_cru();
-
 	return 0;
 }
 
@@ -163,7 +157,6 @@ void machine_crash_shutdown(struct pt_regs *regs)
  * Function pointer to optional machine-specific reinitialization
  */
 void (*kexec_reinit)(void);
-
 
 void machine_kexec(struct kimage *image)
 {

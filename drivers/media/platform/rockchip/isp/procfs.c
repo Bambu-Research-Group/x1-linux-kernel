@@ -231,10 +231,25 @@ static int isp_show(struct seq_file *p, void *v)
 	if (!(dev->isp_state & ISP_START))
 		return 0;
 
-	seq_printf(p, "%-10s Cnt:%d ErrCnt:%d\n",
+	seq_printf(p, "%-10s IspIsrCnt:%d\n"
+			"           IspErrCnt:%d\n"
+			"           LostCnt:%d\n"
+			"           MipiPhyErrCnt:%d\n"
+			"           MipiPacketErrCnt:%d\n"
+			"           MipiOverflowErrCnt:%d\n"
+			"           MipiSizeErrCnt:%d\n"
+			"           MipiDropErrCnt:%d\n"
+			"           MipiTotalErrCnt:%d\n",
 		   "Interrupt",
 		   dev->isp_isr_cnt,
-		   dev->isp_err_cnt);
+		   dev->isp_err_cnt,
+		   dev->frame_lost_cnt,
+		   dev->mipi_phy_err_cnt,
+		   dev->mipi_packet_err_cnt,
+		   dev->mipi_overflow_err_cnt,
+		   dev->mipi_size_err_cnt,
+		   dev->mipi_drop_cnt,
+		   dev->mipi_total_err_cnt);
 
 	if (sensor && sensor->fi.interval.numerator)
 		val = sensor->fi.interval.denominator / sensor->fi.interval.numerator;

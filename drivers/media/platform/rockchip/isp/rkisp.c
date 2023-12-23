@@ -1134,6 +1134,13 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 
 	dev->isp_err_cnt = 0;
 	dev->isp_isr_cnt = 0;
+	dev->mipi_phy_err_cnt = 0;
+	dev->mipi_packet_err_cnt = 0;
+	dev->mipi_overflow_err_cnt = 0;
+	dev->mipi_size_err_cnt = 0;
+	dev->mipi_drop_cnt = 0;
+	dev->mipi_total_err_cnt = 0;
+	dev->frame_lost_cnt = 0;
 	dev->isp_state = ISP_START | ISP_FRAME_END;
 	dev->irq_ends_mask |= ISP_FRAME_END | ISP_FRAME_IN;
 	dev->irq_ends = 0;
@@ -2426,7 +2433,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		rkisp_set_state(dev, ISP_FRAME_VS);
 		/* last vsync to config next buf */
 		if (!dev->csi_dev.filt_state[CSI_F_VS])
-			rkisp_bridge_update_mi(dev);
+			rkisp_bridge_update_mi(dev, isp_mis);
 		else
 			dev->csi_dev.filt_state[CSI_F_VS]--;
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {

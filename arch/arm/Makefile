@@ -404,13 +404,26 @@ ifdef CONFIG_MODULES
 	$(Q)if [ "$(srctree)" = "$(objtree)" ]; then $(MAKE) modules; fi
 endif
 
-ifdef CONFIG_DRM
-LOGO := $(notdir $(wildcard $(srctree)/logo.bmp))
-LOGO_KERNEL := $(notdir $(wildcard $(srctree)/logo_kernel.bmp))
+LOGO := resources/$(RK_KERNEL_DTS)/logo.bmp
+LOGO_KERNEL := resources/$(RK_KERNEL_DTS)/logo_kernel.bmp
+
+# check file exist
+pre_resource:
+ifeq ($(shell test -e $(LOGO) && echo -n yes),)
+	$(error resources/$(RK_KERNEL_DTS)/logo.bmp not exist)
+endif
+ifeq ($(shell test -e $(LOGO_KERNEL) && echo -n yes),)
+	$(error resources/$(RK_KERNEL_DTS)/logo_kernel.bmp not exist)
 endif
 
-%.img: %.dtb kernel.img $(LOGO) $(LOGO_KERNEL)
+%.img: %.dtb kernel.img pre_resource
+	$(warning start resources/$(RK_KERNEL_DTS)/logo.bmp logo.bmp)
+	ln -s $(LOGO) logo.bmp
+	ln -s $(LOGO_KERNEL) logo_kernel.bmp
 	$(Q)$(srctree)/scripts/mkimg --dtb $*.dtb
+	unlink logo.bmp
+	unlink logo_kernel.bmp
+	$(warning leave resources/$(RK_KERNEL_DTS)/logo.bmp logo.bmp)
 
 CLEAN_DIRS += out
 CLEAN_FILES += boot.img kernel.img resource.img zboot.img

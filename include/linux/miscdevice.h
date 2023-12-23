@@ -58,6 +58,7 @@
 #define USERIO_MINOR		240
 #define VHOST_VSOCK_MINOR	241
 #define RFKILL_MINOR		242
+#define BBL_TIME_SYNC		250
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;

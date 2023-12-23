@@ -400,7 +400,7 @@ GENKSYMS	= scripts/genksyms/genksyms
 INSTALLKERNEL  := installkernel
 DEPMOD		= /sbin/depmod
 PERL		= perl
-PYTHON		= python3
+PYTHON		= python
 PYTHON2		= python2
 PYTHON3		= python3
 CHECK		= sparse
@@ -1470,7 +1470,7 @@ distclean: mrproper
 	@find $(srctree) $(RCS_FIND_IGNORE) \
 		\( -name '*.orig' -o -name '*.rej' -o -name '*~' \
 		-o -name '*.bak' -o -name '#*#' -o -name '*%' \
-		-o -name 'core' \) \
+		-o -name 'core' -o -name '*.img'\) \
 		-type f -print | xargs rm -f
 
 

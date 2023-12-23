@@ -103,6 +103,8 @@
 #define RKMODULE_GET_SONY_BRL	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 19, __u32)
 
+#define RKMODULE_GET_VSYNC_TIME \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 20, __u32)
 /**
  * struct rkmodule_base_inf - module base information
  *

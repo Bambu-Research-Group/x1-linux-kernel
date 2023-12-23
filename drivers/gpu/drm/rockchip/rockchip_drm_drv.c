@@ -60,6 +60,7 @@
 
 static bool is_support_iommu = true;
 static struct drm_driver rockchip_drm_driver;
+static bool is_suspend = false;
 
 struct rockchip_drm_mode_set {
 	struct list_head head;
@@ -2087,6 +2088,45 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 	return 0;
 }
 
+static ssize_t suspend_get(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d", is_suspend);
+}
+
+static ssize_t suspend_set(struct device *dev,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int ret;
+	uint32_t val = 0;
+
+	ret = kstrtouint(buf, 16, &val);
+	if (ret) {
+		dev_err(dev, "value is invalid\n");
+		return -EINVAL;
+	}
+
+	val = !!val;
+
+	if (val == 0 && is_suspend) {
+		is_suspend = false;
+		rockchip_drm_sys_resume(dev);
+	} else if (val == 1 && !is_suspend){
+		is_suspend = true;
+		rockchip_drm_sys_suspend(dev);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(suspend, S_IRUSR | S_IWUSR, suspend_get, suspend_set);
+
+static int suspend_sysfs_register(struct device *dev)
+{
+	return device_create_file(dev, &dev_attr_suspend);
+}
+
 static int rockchip_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2104,6 +2144,12 @@ static int rockchip_drm_platform_probe(struct platform_device *pdev)
 	ret = component_master_add_with_match(dev, &rockchip_drm_ops, match);
 	if (ret < 0) {
 		rockchip_drm_match_remove(dev);
+		return ret;
+	}
+
+	ret = suspend_sysfs_register(dev);
+	if (ret) {
+		dev_err(dev, "drm suspend failed to register\n");
 		return ret;
 	}
 

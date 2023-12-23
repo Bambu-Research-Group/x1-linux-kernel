@@ -771,6 +771,14 @@ config TOUCHSCREEN_EDT_FT5X06
 	  To compile this driver as a module, choose M here: the
 	  module will be called edt-ft5x06.
 
+config TOUCHSCREEN_TLSC6X
+	bool "Focaltech Touchscreen"
+		depends on I2C
+		default n
+		help
+		  Say Y here if you have tlsc6x touch panel.
+		  If unsure, say N.
+
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on (SH_MIGOR || COMPILE_TEST) && I2C

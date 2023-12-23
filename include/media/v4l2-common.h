@@ -66,7 +66,7 @@
 
 /* These printk constructs can be used with v4l2_device and v4l2_subdev */
 #define v4l2_printk(level, dev, fmt, arg...) \
-	printk(level "%s: " fmt, (dev)->name , ## arg)
+	printk_ratelimited(level "%s: " fmt, (dev)->name , ## arg)
 
 #define v4l2_err(dev, fmt, arg...) \
 	v4l2_printk(KERN_ERR, dev, fmt , ## arg)

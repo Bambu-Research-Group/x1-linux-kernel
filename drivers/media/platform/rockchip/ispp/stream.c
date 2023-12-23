@@ -2455,7 +2455,7 @@ static void restart_monitor(struct work_struct *work)
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s module:0x%x enter\n", __func__, m_monitor->module);
-	while (monitor->is_en) {
+	while (monitor->is_en && dev->ispp_sdev.state != ISPP_STOP) {
 		/* max timeout for module idle */
 		time = MAX_SCHEDULE_TIMEOUT;
 		if (monitor->monitoring_module & m_monitor->module)
@@ -2465,7 +2465,7 @@ static void restart_monitor(struct work_struct *work)
 		if (!(monitor->monitoring_module & m_monitor->module) ||
 		    ret || !monitor->is_en)
 			continue;
-		if (dev->hw_dev->is_shutdown)
+		if (dev->hw_dev->is_shutdown || dev->ispp_sdev.state == ISPP_STOP)
 			break;
 		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 			 "module:0x%x wait %ldms timeout ret:%d, monitoring:0x%x\n",

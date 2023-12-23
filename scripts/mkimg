@@ -224,6 +224,9 @@ fi
 scripts/resource_tool ${DTB_PATH} ${LOGO} ${LOGO_KERNEL} >/dev/null
 echo "  Image:  resource.img (with ${DTB} ${LOGO} ${LOGO_KERNEL}) is ready"
 
+make ARCH=arm dtbs
+python scripts/mkmultidtb.py ${DTB}
+
 if [ -f "${BOOT_IMG}" ]; then
 	if file -p -b ${BOOT_IMG} | grep -q 'Device Tree Blob' ; then
 		repack_itb;

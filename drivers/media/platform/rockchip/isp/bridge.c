@@ -1485,7 +1485,7 @@ void rkisp_bridge_stop_spstream(struct rkisp_device *dev)
 	spin_unlock_irqrestore(&hw->buf_lock, lock_flags);
 }
 
-void rkisp_bridge_update_mi(struct rkisp_device *dev)
+void rkisp_bridge_update_mi(struct rkisp_device *dev, u32 isp_mis)
 {
 	struct rkisp_bridge_device *br = &dev->br_dev;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
@@ -1494,7 +1494,8 @@ void rkisp_bridge_update_mi(struct rkisp_device *dev)
 	u32 val;
 
 	if (dev->isp_ver != ISP_V20 || !br->en ||
-	    br->work_mode & ISP_ISPP_QUICK)
+	    br->work_mode & ISP_ISPP_QUICK ||
+		isp_mis & CIF_ISP_FRAME)
 		return;
 
 	br->fs_ns = ktime_get_ns();

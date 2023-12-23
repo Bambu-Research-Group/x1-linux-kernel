@@ -618,6 +618,8 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "readback frame:%d time:%d 0x%x\n",
 		 cur_frame_id, dma2frm + 1, val);
+	if (dev->isp_ver == ISP_V20 && !dma2frm)
+		rkisp_bridge_update_mi(dev, 0);
 	if (!hw->is_shutdown)
 		rkisp_write(dev, CSI2RX_CTRL0, val, true);
 }

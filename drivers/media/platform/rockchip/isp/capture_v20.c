@@ -14,6 +14,10 @@
 #include "regs.h"
 
 #define CIF_ISP_REQ_BUFS_MIN			0
+static struct mipi_counter {
+	u32 cnt_mipi_err;
+	u32 cnt_mipi_part;
+} mipi_cnt;
 
 static int mi_frame_end(struct rkisp_stream *stream);
 static void rkisp_buf_queue(struct vb2_buffer *vb);
@@ -1357,6 +1361,7 @@ RDBK_FRM_UNMATCH:
  * is processing and we should set up buffer for next-next frame,
  * otherwise it will overflow.
  */
+extern u64 get_ov2740_vsync_time(void);
 static int mi_frame_end(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
@@ -1369,11 +1374,13 @@ static int mi_frame_end(struct rkisp_stream *stream)
 
 	if (!stream->next_buf && stream->streaming &&
 	    dev->dmarx_dev.trigger == T_MANUAL &&
-	    is_rdbk_stream(stream))
+	    is_rdbk_stream(stream)) {
+		dev->frame_lost_cnt++;
 		v4l2_info(&dev->v4l2_dev,
 			  "tx stream:%d lose frame:%d, isp state:0x%x frame:%d\n",
 			  stream->id, atomic_read(&stream->sequence) - 1,
 			  dev->isp_state, dev->dmarx_dev.cur_frame.id);
+    }
 
 	if (stream->curr_buf &&
 	    (!interlaced ||
@@ -1395,9 +1402,14 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		else
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;
+#if 0
 		if (!ns)
 			ns = ktime_get_ns();
 		vb2_buf->timestamp = ns;
+#endif
+		vb2_buf->cnt_mipi_err = mipi_cnt.cnt_mipi_err;
+		vb2_buf->priv_update = true;
+		vb2_buf->timestamp = get_ov2740_vsync_time();
 
 		ns = ktime_get_ns();
 		stream->dbg.interval = ns - stream->dbg.timestamp;
@@ -2246,6 +2258,13 @@ void rkisp_mi_v20_isr(u32 mis_val, struct rkisp_device *dev)
 	rkisp_bridge_isr(&mis_val, dev);
 }
 
+#define MIPI_PHY_ERR		(0x1)
+#define	MIPI_PACKET_ERR		(0x2)
+#define	MIPI_OVERFLOW_ERR	(0x4)
+#define	MIPI_SIZE_ERR		(0x8)
+#define MIPI_DROP_ERR		(0x10)
+#define MIPI_ERR_CNT_OFF	(25)
+
 void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 			unsigned int overflow, unsigned int state,
 			struct rkisp_device *dev)
@@ -2256,20 +2275,45 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 		PACKET_ERR_FRAME_DATA | PACKET_ERR_ECC_1BIT |
 		PACKET_ERR_ECC_2BIT | PACKET_ERR_CHECKSUM;
 	u32 state_err = RAW_WR_SIZE_ERR | RAW_RD_SIZE_ERR;
+	u32 cnt_mipi_err = 0;
 	int i;
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "csi state:0x%x\n", state);
-	if (phy && (dev->isp_inp & INP_CSI))
+	if (phy && (dev->isp_inp & INP_CSI)) {
+		dev->mipi_phy_err_cnt++;
+		dev->mipi_total_err_cnt++;
+		cnt_mipi_err = MIPI_PHY_ERR;
 		v4l2_warn(v4l2_dev, "MIPI error: phy: 0x%08x\n", phy);
-	if ((packet & packet_err) && (dev->isp_inp & INP_CSI))
+	}
+
+	if ((packet & packet_err) && (dev->isp_inp & INP_CSI)) {
+		dev->mipi_packet_err_cnt++;
+		dev->mipi_total_err_cnt++;
+		cnt_mipi_err = MIPI_PACKET_ERR;
 		v4l2_warn(v4l2_dev, "MIPI error: packet: 0x%08x\n", packet);
-	if (overflow)
+	}
+
+	if (overflow) {
+		dev->mipi_overflow_err_cnt++;
+		dev->mipi_total_err_cnt++;
+		cnt_mipi_err = MIPI_OVERFLOW_ERR;
 		v4l2_warn(v4l2_dev, "MIPI error: overflow: 0x%08x\n", overflow);
-	if (state & state_err)
+	}
+
+	if (state & state_err) {
+		dev->mipi_size_err_cnt++;
+		dev->mipi_total_err_cnt++;
+		cnt_mipi_err = MIPI_SIZE_ERR;
 		v4l2_warn(v4l2_dev, "MIPI error: size: 0x%08x\n", state);
-	if (state & MIPI_DROP_FRM)
+	}
+
+	if (state & MIPI_DROP_FRM) {
+		dev->mipi_drop_cnt++;
+		dev->mipi_total_err_cnt++;
+		cnt_mipi_err = MIPI_DROP_ERR;
 		v4l2_warn(v4l2_dev, "MIPI drop frame\n");
+	}
 
 	/* first Y_STATE irq as csi sof event */
 	if (state & (RAW0_Y_STATE | RAW1_Y_STATE | RAW2_Y_STATE)) {
@@ -2280,6 +2324,7 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 			dev->csi_dev.tx_first[i] = true;
 			rkisp_csi_sof(dev, i);
 			stream = &dev->cap_dev.stream[i + RKISP_STREAM_DMATX0];
+			memset(&mipi_cnt, 0, sizeof(mipi_cnt));
 			atomic_inc(&stream->sequence);
 		}
 	}
@@ -2297,6 +2342,16 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 	}
 
 	if (state & (RAW0_Y_STATE | RAW1_Y_STATE | RAW2_Y_STATE |
-	    RAW0_WR_FRAME | RAW1_WR_FRAME | RAW2_WR_FRAME))
+	    RAW0_WR_FRAME | RAW1_WR_FRAME | RAW2_WR_FRAME)) {
+		if (cnt_mipi_err != 0) {
+			mipi_cnt.cnt_mipi_err |= (cnt_mipi_err << (mipi_cnt.cnt_mipi_part * 5));
+			mipi_cnt.cnt_mipi_err += (1 << MIPI_ERR_CNT_OFF);
+		}
+
+		if (mipi_cnt.cnt_mipi_part < 4) {
+			mipi_cnt.cnt_mipi_part++;
+		}
+
 		rkisp_luma_isr(&dev->luma_vdev, state);
+	}
 }

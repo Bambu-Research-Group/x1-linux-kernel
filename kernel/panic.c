@@ -133,6 +133,9 @@ EXPORT_SYMBOL(nmi_panic);
  *
  *	This function never returns.
  */
+#ifdef CONFIG_BBL_IOTRACE
+extern void iotrace_disable(void);
+#endif
 void panic(const char *fmt, ...)
 {
 	static char buf[1024];
@@ -150,6 +153,10 @@ void panic(const char *fmt, ...)
 	 */
 	local_irq_disable();
 	preempt_disable_notrace();
+
+#ifdef CONFIG_BBL_IOTRACE
+	iotrace_disable();
+#endif
 
 	/*
 	 * It's possible to come here directly from a panic-assertion and

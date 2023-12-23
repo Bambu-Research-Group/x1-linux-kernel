@@ -75,7 +75,7 @@
 #define RKISP_MEDIA_BUS_FMT_MASK	0xF000
 #define RKISP_MEDIA_BUS_FMT_BAYER	0x3000
 
-#define RKISP_CONTI_ERR_MAX		50
+#define RKISP_CONTI_ERR_MAX		0xFFFFFFFF
 
 enum rkisp_isp_state {
 	ISP_FRAME_END = BIT(0),
@@ -219,5 +219,12 @@ struct rkisp_device {
 	bool send_fbcgain;
 	struct rkisp_ispp_buf *cur_fbcgain;
 	struct rkisp_buffer *cur_spbuf;
+	unsigned int frame_lost_cnt;
+	unsigned int mipi_phy_err_cnt;
+	unsigned int mipi_packet_err_cnt;
+	unsigned int mipi_overflow_err_cnt;
+	unsigned int mipi_size_err_cnt;
+	unsigned int mipi_drop_cnt;
+	unsigned int mipi_total_err_cnt;
 };
 #endif

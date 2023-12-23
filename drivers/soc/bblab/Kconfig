@@ -1,0 +1,22 @@
+#
+# Bblab SoC Drivers
+#
+menu "Bblab SoC Drivers"
+
+config BBLAB_TIME_SYNC
+	bool "Bblab time sync driver"
+	help
+	  This driver is used for time sync between socs.
+
+config BBL_KPANIC
+	tristate "Log panic/oops to a block device"
+	help
+	  This enables panic and oops messages to be logged to a block dev
+	  where it can be read back at some later point.
+
+config BBL_IOTRACE
+	tristate "trace io driver"
+	help
+	  This enables io readl/writel trace
+
+endmenu

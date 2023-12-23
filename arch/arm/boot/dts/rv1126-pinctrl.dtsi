@@ -1212,7 +1212,7 @@
 		sdmmc0_det: sdmmc0-det {
 			rockchip,pins =
 				/* sdmmc0_det */
-				<0 RK_PA3 1 &pcfg_pull_none>;
+				<0 RK_PA3 1 &pcfg_pull_up_drv_level_2>;
 		};
 		/omit-if-no-ref/
 		sdmmc0_pwr: sdmmc0-pwr {

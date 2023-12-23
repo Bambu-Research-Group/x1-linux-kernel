@@ -55,6 +55,13 @@ void __raw_readsb(const volatile void __iomem *addr, void *data, int bytelen);
 void __raw_readsw(const volatile void __iomem *addr, void *data, int wordlen);
 void __raw_readsl(const volatile void __iomem *addr, void *data, int longlen);
 
+#ifndef CONFIG_BBL_IOTRACE
+#define iotrace_add_record(...)
+#else
+#include <linux/iotrace.h>
+#endif
+
+
 #if __LINUX_ARM_ARCH__ < 6
 /*
  * Half-word accesses are problematic with RiscPC due to limitations of
@@ -72,17 +79,23 @@ void __raw_readsl(const volatile void __iomem *addr, void *data, int longlen);
 #define __raw_writew __raw_writew
 static inline void __raw_writew(u16 val, volatile void __iomem *addr)
 {
+    iotrace_add_record(IOT_16 | IOT_WRITE, addr, val);
 	asm volatile("strh %1, %0"
 		     : : "Q" (*(volatile u16 __force *)addr), "r" (val));
+
+    iotrace_add_record(IOT_16 | IOT_WRITE, addr, val);
 }
 
 #define __raw_readw __raw_readw
 static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
-	u16 val;
+	u16 val = 0;
+    iotrace_add_record(IOT_16 | IOT_READ, addr, val);
 	asm volatile("ldrh %0, %1"
 		     : "=r" (val)
 		     : "Q" (*(volatile u16 __force *)addr));
+    iotrace_add_record(IOT_16 | IOT_READ, addr, val);
+
 	return val;
 }
 #endif
@@ -90,34 +103,44 @@ static inline u16 __raw_readw(const volatile void __iomem *addr)
 #define __raw_writeb __raw_writeb
 static inline void __raw_writeb(u8 val, volatile void __iomem *addr)
 {
+    iotrace_add_record(IOT_8 | IOT_WRITE, addr, val);
 	asm volatile("strb %1, %0"
 		     : : "Qo" (*(volatile u8 __force *)addr), "r" (val));
+    iotrace_add_record(IOT_8 | IOT_WRITE, addr, val);
 }
 
 #define __raw_writel __raw_writel
 static inline void __raw_writel(u32 val, volatile void __iomem *addr)
 {
+    iotrace_add_record(IOT_32 | IOT_WRITE, addr, val);
 	asm volatile("str %1, %0"
 		     : : "Qo" (*(volatile u32 __force *)addr), "r" (val));
+    iotrace_add_record(IOT_32 | IOT_WRITE, addr, val);
 }
 
 #define __raw_readb __raw_readb
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {
-	u8 val;
+	u8 val = 0;
+    iotrace_add_record(IOT_8 | IOT_READ, addr, val);
 	asm volatile("ldrb %0, %1"
 		     : "=r" (val)
 		     : "Qo" (*(volatile u8 __force *)addr));
+    iotrace_add_record(IOT_8 | IOT_READ, addr, val);
+
 	return val;
 }
 
 #define __raw_readl __raw_readl
 static inline u32 __raw_readl(const volatile void __iomem *addr)
 {
-	u32 val;
+	u32 val = 0;
+    iotrace_add_record(IOT_32 | IOT_READ, addr, val);
 	asm volatile("ldr %0, %1"
 		     : "=r" (val)
 		     : "Qo" (*(volatile u32 __force *)addr));
+    iotrace_add_record(IOT_32 | IOT_READ, addr, val);
+
 	return val;
 }
 

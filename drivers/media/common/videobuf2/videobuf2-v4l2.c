@@ -239,6 +239,9 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vb2_queue *q = vb->vb2_queue;
 	unsigned int plane;
+	static u32 seq = 0;
+	static u32 err = 0;
+	static struct timeval ts;
 
 	/* Copy back data such as timestamp, flags, etc. */
 	b->index = vb->index;
@@ -248,11 +251,23 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 
 	b->flags = vbuf->flags;
 	b->field = vbuf->field;
-	b->timestamp = ns_to_timeval(vb->timestamp);
 	b->timecode = vbuf->timecode;
 	b->sequence = vbuf->sequence;
 	b->reserved2 = 0;
-	b->reserved = 0;
+	if (vb->priv_update) {
+		err = vb->cnt_mipi_err;
+		seq = vbuf->sequence;
+		ts = ns_to_timeval(vb->timestamp);
+		vb->priv_update = false;
+	}
+
+	if ( seq == vbuf->sequence) {
+		b->timestamp = ts;
+		b->reserved = err;
+	} else {
+		b->timestamp = ns_to_timeval(vb->timestamp);
+		b->reserved = 0;
+	}
 
 	if (q->is_multiplanar) {
 		/*

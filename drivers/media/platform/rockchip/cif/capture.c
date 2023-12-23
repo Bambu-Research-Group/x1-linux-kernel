@@ -4448,6 +4448,13 @@ void rkcif_irq_oneframe(struct rkcif_device *cif_dev)
 		if (vb_done && (!ret)) {
 			vb_done->sequence = stream->frame_idx;
 			rkcif_vb_done_oneframe(stream, vb_done);
+
+			ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd, core,
+					ioctl, RKMODULE_GET_VSYNC_TIME,
+					&(vb_done->vb2_buf.timestamp));
+			if (ret) {
+				v4l2_err(&cif_dev->v4l2_dev, "err: get vsync timestamp failed!!\n");
+			}
 		}
 
 		stream->frame_idx++;

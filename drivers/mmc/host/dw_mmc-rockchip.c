@@ -388,7 +388,7 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	const struct dw_mci_drv_data *drv_data;
 	const struct of_device_id *match;
 	int ret;
-	bool use_rpm = true;
+	bool use_rpm = false;
 
 	if (!pdev->dev.of_node)
 		return -ENODEV;

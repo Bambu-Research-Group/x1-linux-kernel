@@ -382,6 +382,11 @@
 			size = <0x10000000>;
 		};
 
+		iotrace_region: iotrace@7c00000 {
+			reg = <0x7c00000 0x400000>;
+			no-map;
+		};
+
 		ramoops: ramoops@8000000 {
 			compatible = "ramoops";
 			reg = <0x8000000 0x100000>;
@@ -391,6 +396,23 @@
 			pmsg-size = <0x40000>;
 			status = "disabled";
 		};
+	};
+
+	kpanic: kpanic@ffc50000 {
+		compatible = "kpanic";
+		reg = <0xffc50000 0x4000>, <0xff490000 0x1000>;
+		reg-names = "emmc", "cru";
+		partition-name  = "/dev/block/by-name/panic";
+		partition-start = <0x1a000>; // blk sector
+		partition-size  = <0x2000>; // sectors: 0x40,0000 Bytes
+		record-size = <0x20000>; // bytes
+		status = "disabled";
+	};
+
+	iotrace: iotrace {
+		compatible = "iotrace";
+		memory-region = <&iotrace_region>;
+		status = "disabled";
 	};
 
 	rkcif_dvp: rkcif_dvp {
@@ -624,6 +646,7 @@
 	qos_npu: qos@fe850000 {
 		compatible = "syscon";
 		reg = <0xfe850000 0x20>;
+		priority-init = <0>;
 	};
 
 	qos_emmc: qos@fe860000 {
@@ -664,6 +687,8 @@
 	qos_ispp_m0: qos@fe880000 {
 		compatible = "syscon";
 		reg = <0xfe880000 0x20>;
+		mode-init = <0>;
+		priority-init = <0x2>;
 	};
 
 	qos_ispp_m1: qos@fe880080 {
@@ -674,6 +699,7 @@
 	qos_isp: qos@fe890000 {
 		compatible = "syscon";
 		reg = <0xfe890000 0x20>;
+		priority-init = <0x202>;
 	};
 
 	qos_cif_lite: qos@fe890080 {
@@ -2522,7 +2548,7 @@
 			compatible = "snps,dwc3";
 			reg = <0xffd00000 0x100000>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
-			dr_mode = "otg";
+			dr_mode = "peripheral";
 			maximum-speed = "high-speed";
 			phys = <&u2phy_otg>;
 			phy-names = "usb2-phy";
@@ -2639,6 +2665,11 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+	};
+
+	time_sync: time_sync {
+		compatible = "bblab,time_sync";
+		status ="disabled";
 	};
 };
 

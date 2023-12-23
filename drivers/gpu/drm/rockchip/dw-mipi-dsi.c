@@ -760,14 +760,20 @@ static int dw_mipi_dsi_read_from_fifo(struct dw_mipi_dsi *dsi,
 	u16 length;
 	u32 val;
 	int ret;
+	static int count = 0;
 
 	ret = regmap_read_poll_timeout(dsi->regmap, DSI_CMD_PKT_STATUS,
-				       val, !(val & GEN_RD_CMD_BUSY),
-				       0, DIV_ROUND_UP(1000000, vrefresh));
+			val, !(val & GEN_RD_CMD_BUSY),
+			0, DIV_ROUND_UP(1000000, vrefresh));
 	if (ret) {
-		DRM_DEV_ERROR(dsi->dev,
-			      "entire response isn't stored in the FIFO\n");
+		count++;
+		if (count == 2) {
+			DRM_DEV_ERROR(dsi->dev,
+					"entire response isn't stored in the FIFO\n");
+		}
 		return ret;
+	} else {
+		count = 0;
 	}
 
 	/* Receive payload */
