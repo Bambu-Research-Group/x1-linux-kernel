@@ -24,6 +24,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched/clock.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 
 #ifdef CONFIG_64BIT
 #define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN64_##name
@@ -478,6 +479,9 @@ EXPORT_SYMBOL_GPL(sip_fiq_debugger_enable_fiq);
 static __init int sip_firmware_init(void)
 {
 	struct arm_smccc_res res;
+	
+	if (of_machine_is_compatible("linux,dummy-virt"))
+		return 0;
 
 	if (!psci_smp_available())
 		return 0;
