@@ -341,7 +341,7 @@
 		optee: optee {
 			compatible = "linaro,optee-tz";
 			method = "smc";
-			status = "disabled";
+			#status = "disabled";
 		};
 	};
 
@@ -381,11 +381,12 @@
 			reusable;
 			size = <0x10000000>;
 		};
-
+/*
 		iotrace_region: iotrace@7c00000 {
 			reg = <0x7c00000 0x400000>;
 			no-map;
 		};
+*/
 
 		ramoops: ramoops@8000000 {
 			compatible = "ramoops";
@@ -408,12 +409,13 @@
 		record-size = <0x20000>; // bytes
 		status = "disabled";
 	};
-
+/*
 	iotrace: iotrace {
 		compatible = "iotrace";
 		memory-region = <&iotrace_region>;
 		status = "disabled";
 	};
+*/
 
 	rkcif_dvp: rkcif_dvp {
 		compatible = "rockchip,rkcif-dvp";

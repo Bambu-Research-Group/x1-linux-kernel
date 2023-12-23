@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -58,6 +57,8 @@
 #define PHYDM_FW_API_FUNC_ENABLE_8812F 1
 #define PHYDM_FW_API_ENABLE_8197G 1
 #define PHYDM_FW_API_FUNC_ENABLE_8197G 1
+#define PHYDM_FW_API_ENABLE_8723F 1
+#define PHYDM_FW_API_FUNC_ENABLE_8723F 1
 
 #define CONFIG_POWERSAVING 0
 

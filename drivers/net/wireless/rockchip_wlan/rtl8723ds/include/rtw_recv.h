@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -405,6 +404,15 @@ struct recv_priv {
 	_queue	recv_buf_pending_queue;
 #endif
 
+#if defined(CONFIG_SDIO_HCI)
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT
+	struct rtw_pwait_ctx recvbuf_pwait;
+#endif
+#ifdef CONFIG_SDIO_RECVBUF_AGGREGATION
+	bool recvbuf_agg;
+#endif
+#endif /* CONFIG_SDIO_HCI */
+
 #ifdef CONFIG_PCI_HCI
 	/* Rx */
 	struct rtw_rx_ring	rx_ring[PCI_MAX_RX_QUEUE];
@@ -440,6 +448,15 @@ struct recv_priv {
 
 	BOOLEAN store_law_data_flag;
 };
+
+#ifdef CONFIG_SDIO_RECVBUF_AGGREGATION
+#define recv_buf_agg(recvpriv) recvpriv->recvbuf_agg
+#ifndef CONFIG_SDIO_RECVBUF_AGGREGATION_EN
+#define CONFIG_SDIO_RECVBUF_AGGREGATION_EN 1
+#endif
+#else
+#define recv_buf_agg(recvpriv) 0
+#endif
 
 #define RX_BH_STG_UNKNOWN		0
 #define RX_BH_STG_HDL_ENTER		1
@@ -489,10 +506,20 @@ struct sta_recv_priv {
 };
 
 
+#define RBUF_TYPE_PREALLOC	0
+#define RBUF_TYPE_TMP		1
+#define RBUF_TYPE_PWAIT_ADJ	2
+
 struct recv_buf {
 	_list list;
 
+#ifdef PLATFORM_WINDOWS
 	_lock recvbuf_lock;
+#endif
+
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST
+	u8 type;
+#endif
 
 	u32	ref_cnt;
 
@@ -523,6 +550,11 @@ struct recv_buf {
 #endif
 };
 
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST
+#define RBUF_IS_PREALLOC(rbuf) ((rbuf)->type == RBUF_TYPE_PREALLOC)
+#else
+#define RBUF_IS_PREALLOC(rbuf) 1
+#endif
 
 /*
 	head  ----->
@@ -548,7 +580,7 @@ struct recv_frame_hdr {
 	u8 fragcnt;
 
 	int frame_tag;
-
+	int keytrack;
 	struct rx_pkt_attrib attrib;
 
 	uint  len;

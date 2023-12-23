@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -791,6 +790,16 @@ void halrf_rf_lna_setting(void *dm_void, enum halrf_lna_set type)
 		halrf_rf_lna_setting_8821c(dm_void, type);
 		break;
 #endif
+#if (RTL8710C_SUPPORT == 1)
+	case ODM_RTL8710C:
+		halrf_rf_lna_setting_8710c(dm_void, type);
+		break;
+#endif
+#if (RTL8721D_SUPPORT == 1)
+	case ODM_RTL8721D:
+		halrf_rf_lna_setting_8721d(dm, type);
+		break;
+#endif
 #if (RTL8814B_SUPPORT == 1)
 		case ODM_RTL8814B:
 			break;
@@ -1039,6 +1048,9 @@ u64 halrf_cmn_info_get(void *dm_void, u32 cmn_info)
 	case HALRF_CMNINFO_IQK_SEGMENT:
 		return_value = dm->IQK_info.segment_iqk;
 		break;
+	case HALRF_CMNINFO_IQK_TIMES:
+		return_value = dm->IQK_info.iqk_times;
+		break;
 #endif
 	default:
 		/* do nothing */
@@ -1105,7 +1117,7 @@ void halrf_supportability_init_mp(void *dm_void)
 #if (RTL8195B_SUPPORT == 1)
 	case ODM_RTL8195B:
 		rf->rf_supportability =
-			HAL_RF_TX_PWR_TRACK |
+			/*HAL_RF_TX_PWR_TRACK |*/
 			HAL_RF_IQK |
 			HAL_RF_LCK |
 			HAL_RF_DPK |
@@ -1186,6 +1198,18 @@ void halrf_supportability_init_mp(void *dm_void)
 			HAL_RF_DPK |
 			HAL_RF_DPK_TRACK |
 			/*@HAL_RF_TXGAPK |*/
+			0;
+		break;
+#endif
+#if (RTL8723F_SUPPORT == 1)
+	case ODM_RTL8723F:
+		rf->rf_supportability =
+			HAL_RF_TX_PWR_TRACK |
+			HAL_RF_IQK |
+			HAL_RF_LCK |
+			HAL_RF_DPK |
+			HAL_RF_TXGAPK |
+			HAL_RF_DPK_TRACK |
 			0;
 		break;
 #endif
@@ -1349,6 +1373,18 @@ void halrf_supportability_init(void *dm_void)
 				0;
 			break;
 #endif
+#if (RTL8723F_SUPPORT == 1)
+		case ODM_RTL8723F:
+			rf->rf_supportability =
+				HAL_RF_TX_PWR_TRACK |
+				HAL_RF_IQK |
+				HAL_RF_LCK |
+				HAL_RF_DPK |
+				HAL_RF_TXGAPK |
+				HAL_RF_DPK_TRACK |
+				0;
+			break;
+#endif
 
 	default:
 		rf->rf_supportability =
@@ -1376,9 +1412,14 @@ void halrf_watchdog(void *dm_void)
 	if (rf->is_dpk_in_progress || dm->rf_calibrate_info.is_iqk_in_progress ||
 		rf->is_tssi_in_progress)
 		return;
-
+#if !(RTL8723F_SUPPORT == 1)
 	phydm_rf_watchdog(dm);
+#endif
 	halrf_dpk_track(dm);
+#if (RTL8723F_SUPPORT == 1)
+		halrf_xtal_thermal_track(dm);
+#endif
+
 }
 
 #if 0
@@ -1416,6 +1457,31 @@ halrf_iqk_init(
 }
 #endif
 
+void halrf_rfk_power_save(void *dm_void, boolean is_power_save)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct dm_iqk_info *iqk_info = &dm->IQK_info;
+
+	switch (dm->support_ic_type) {
+#if (RTL8822C_SUPPORT == 1)
+	case ODM_RTL8822C:		
+		halrf_rfk_power_save_8822c(dm, is_power_save);
+	break;
+#endif
+
+#if (RTL8723F_SUPPORT == 1)
+	case ODM_RTL8723F:
+		halrf_rfk_power_save_8723f(dm, is_power_save);
+	break;
+#endif
+
+	default:
+	break;
+	}
+}
+
+
+
 void halrf_reload_iqk(void *dm_void, boolean reset)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
@@ -1424,9 +1490,10 @@ void halrf_reload_iqk(void *dm_void, boolean reset)
 	u32 tmp;
 	u32 bit_mask_20_16 = BIT(20) | BIT(19) | BIT(18) | BIT(17) | BIT(16);
 
+	halrf_rfk_power_save(dm, false);
 	switch (dm->support_ic_type) {
 #if (RTL8822C_SUPPORT == 1)
-	case ODM_RTL8822C:		
+	case ODM_RTL8822C:
 		iqk_reload_iqk_8822c(dm, reset);
 	break;
 #endif
@@ -1439,6 +1506,7 @@ void halrf_reload_iqk(void *dm_void, boolean reset)
 	default:
 	break;
 	}
+	halrf_rfk_power_save(dm, true);
 }
 
 void halrf_rfk_handshake(void *dm_void, boolean is_before_k)
@@ -1455,6 +1523,16 @@ void halrf_rfk_handshake(void *dm_void, boolean is_before_k)
 #if (RTL8822C_SUPPORT == 1)
 		case ODM_RTL8822C:
 			halrf_rfk_handshake_8822c(dm, is_before_k);
+			break;
+#endif
+#if (RTL8710C_SUPPORT == 1)
+		case ODM_RTL8710C:
+			halrf_rfk_handshake_8710c(dm, is_before_k);
+			break;
+#endif
+#if (RTL8723F_SUPPORT == 1)
+		case ODM_RTL8723F:
+			halrf_rfk_handshake_8723f(dm, is_before_k);
 			break;
 #endif
 		default:
@@ -1504,16 +1582,19 @@ void halrf_rf_k_connect_trigger(void *dm_void, boolean is_recovery,
 
 	/*[TSSI Trk]*/
 	halrf_tssi_trigger(dm);
-
 	/*[DPK]*/
+#if 1
 	if(dpk_info->is_dpk_by_channel == true)
 		halrf_dpk_trigger(dm);
 	else
 		halrf_dpk_reload(dm);
-
+#endif
 	//ADDA restore to MP_UI setting;
 	config_halrf_path_adda_setting_trigger(dm);
 
+#if (RTL8723F_SUPPORT == 1)
+	halrf_spur_compensation_8723f(dm);
+#endif
 	halrf_bbreset(dm);
 }
 
@@ -1637,6 +1718,7 @@ void halrf_segment_iqk_trigger(void *dm_void, boolean clear,
 	if (iqk_info->rfk_forbidden)
 		return;
 
+	rf->rfk_type = RF01_IQK;
 	halrf_rfk_handshake(dm, true);
 
 	if (!dm->rf_calibrate_info.is_iqk_in_progress) {
@@ -1646,6 +1728,7 @@ void halrf_segment_iqk_trigger(void *dm_void, boolean clear,
 		start_time = odm_get_current_time(dm);
 		dm->IQK_info.segment_iqk = segment_iqk;
 
+		halrf_rfk_power_save(dm, false);
 		switch (dm->support_ic_type) {
 #if (RTL8822B_SUPPORT == 1)
 		case ODM_RTL8822B:
@@ -1757,9 +1840,17 @@ void halrf_segment_iqk_trigger(void *dm_void, boolean clear,
 			phy_iq_calibrate_8814a(dm, false);
 			break;
 #endif
+#if (RTL8723F_SUPPORT == 1)
+		case ODM_RTL8723F:
+			phy_iq_calibrate_8723f(dm, false);
+			break;
+#endif
+
 		default:
 			break;
 		}
+		
+		halrf_rfk_power_save(dm, true);
 		dm->rf_calibrate_info.iqk_progressing_time =
 				odm_get_progressing_time(dm, start_time);
 		RF_DBG(dm, DBG_RF_IQK, "[IQK]IQK progressing_time = %lld ms\n",
@@ -1811,6 +1902,7 @@ void halrf_iqk_trigger(void *dm_void, boolean is_recovery)
 	if (iqk_info->rfk_forbidden)
 		return;
 
+	rf->rfk_type = RF01_IQK;
 	halrf_rfk_handshake(dm, true);
 
 	if (!dm->rf_calibrate_info.is_iqk_in_progress) {
@@ -1818,6 +1910,7 @@ void halrf_iqk_trigger(void *dm_void, boolean is_recovery)
 		dm->rf_calibrate_info.is_iqk_in_progress = true;
 		odm_release_spin_lock(dm, RT_IQK_SPINLOCK);
 		start_time = odm_get_current_time(dm);
+		halrf_rfk_power_save(dm, false);
 		switch (dm->support_ic_type) {
 #if (RTL8188E_SUPPORT == 1)
 		case ODM_RTL8188E:
@@ -1929,9 +2022,17 @@ void halrf_iqk_trigger(void *dm_void, boolean is_recovery)
 			phy_iq_calibrate_8197g(dm, false, false);
 			break;
 #endif
+#if (RTL8723F_SUPPORT == 1)
+		case ODM_RTL8723F:
+			phy_iq_calibrate_8723f(dm, is_recovery);
+			break;
+#endif
+
 		default:
 			break;
 		}
+
+	halrf_rfk_power_save(dm, true);
 	rf->iqk_progressing_time = odm_get_progressing_time(dm, start_time);
 	RF_DBG(dm, DBG_RF_LCK, "[IQK]Trigger IQK progressing_time = %lld ms\n",
 	       rf->iqk_progressing_time);
@@ -1978,7 +2079,7 @@ void halrf_lck_trigger(void *dm_void)
 	if (iqk_info->rfk_forbidden)
 		return;
 	while (*dm->is_scan_in_process) {
-		RF_DBG(dm, DBG_RF_IQK, "[LCK]scan is in process, bypass LCK\n");
+		RF_DBG(dm, DBG_RF_LCK, "[LCK]scan is in process, bypass LCK\n");
 		return;
 	}
 
@@ -2075,6 +2176,17 @@ void halrf_lck_trigger(void *dm_void)
 #endif
 #if (RTL8814B_SUPPORT == 1)
 		case ODM_RTL8814B:
+			phy_lc_calibrate_8814b(dm);
+			break;
+#endif
+#if (RTL8197G_SUPPORT == 1)
+		case ODM_RTL8197G:
+			phy_lc_calibrate_8197g(dm);
+			break;
+#endif
+#if (RTL8198F_SUPPORT == 1)
+		case ODM_RTL8198F:
+			phy_lc_calibrate_8198f(dm);
 			break;
 #endif
 #if (RTL8710C_SUPPORT == 1)
@@ -2082,12 +2194,18 @@ void halrf_lck_trigger(void *dm_void)
 			phy_lc_calibrate_8710c(dm);
 			break;
 #endif
+#if (RTL8723F_SUPPORT == 1)
+		case ODM_RTL8723F:
+			phy_lc_calibrate_8723f(dm);
+			break;
+#endif
+
 		default:
 			break;
 		}
 		dm->rf_calibrate_info.lck_progressing_time =
 				odm_get_progressing_time(dm, start_time);
-		RF_DBG(dm, DBG_RF_IQK, "[IQK]LCK progressing_time = %lld ms\n",
+		RF_DBG(dm, DBG_RF_LCK, "[LCK]LCK progressing_time = %lld ms\n",
 		       dm->rf_calibrate_info.lck_progressing_time);
 #if (RTL8822B_SUPPORT == 1 || RTL8821C_SUPPORT == 1)
 		halrf_lck_dbg(dm);
@@ -2096,8 +2214,8 @@ void halrf_lck_trigger(void *dm_void)
 		dm->rf_calibrate_info.is_lck_in_progress = false;
 		odm_release_spin_lock(dm, RT_IQK_SPINLOCK);
 	} else {
-		RF_DBG(dm, DBG_RF_IQK,
-		       "= Return the LCK CMD, because RFK is in Progress =\n");
+		RF_DBG(dm, DBG_RF_LCK,
+		       "[LCK]= Return the LCK CMD, because RFK is in Progress =\n");
 	}
 }
 
@@ -2160,6 +2278,12 @@ void halrf_x2k_check(struct dm_struct *dm)
 		phy_x2_check_8812f(dm);
 		break;
 #endif
+	case ODM_RTL8723F:
+#if (RTL8723F_SUPPORT == 1)
+		phy_x2_check_8723f(dm);
+		break;
+#endif
+
 	default:
 		break;
 	}
@@ -2183,6 +2307,24 @@ void halrf_set_rfsupportability(void *dm_void)
 	}
 }
 
+void halrf_rfe_definition(struct dm_struct *dm)
+{
+	struct _hal_rf_ *rf = &dm->rf_table;
+
+	switch (dm->support_ic_type) {
+	case ODM_RTL8822C:
+#if (RTL8822C_SUPPORT == 1)
+		if (dm->rfe_type == 21 || dm->rfe_type == 22) {
+			rf->ext_pa_5g = 1;
+			rf->ext_lna_5g = 1;
+			}
+		break;
+#endif
+	default:
+		break;
+	}
+}
+
 void halrf_init(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
@@ -2192,6 +2334,7 @@ void halrf_init(void *dm_void)
 	rf->aac_checked = false;
 	halrf_init_debug_setting(dm);
 	halrf_set_rfsupportability(dm);
+	halrf_rfe_definition(dm);
 #if 1
 	/*Init all RF funciton*/
 	halrf_aac_check(dm);
@@ -2206,6 +2349,10 @@ void halrf_init(void *dm_void)
 	halrf_tssi_dck(dm, true);
 	halrf_tssi_get_efuse(dm);
 	halrf_tssi_set_de(dm);
+#if (RTL8723F_SUPPORT == 1)
+	halrf_do_tssi(dm);
+	halrf_rx_port_ctl_8723f(dm);
+#endif
 
 	/*TX Gap K*/
 	halrf_txgapk_write_gain_table(dm);
@@ -2246,6 +2393,7 @@ void halrf_dpk_trigger(void *dm_void)
 	if (iqk_info->rfk_forbidden)
 		return;
 
+	rf->rfk_type = RF03_DPK;
 	halrf_rfk_handshake(dm, true);
 
 	if (!rf->is_dpk_in_progress) {
@@ -2253,7 +2401,7 @@ void halrf_dpk_trigger(void *dm_void)
 		rf->is_dpk_in_progress = true;
 		odm_release_spin_lock(dm, RT_IQK_SPINLOCK);
 		start_time = odm_get_current_time(dm);
-
+		halrf_rfk_power_save(dm, false);
 		switch (dm->support_ic_type) {
 #if (RTL8822C_SUPPORT == 1)
 		case ODM_RTL8822C:
@@ -2296,6 +2444,11 @@ void halrf_dpk_trigger(void *dm_void)
 			do_dpk_8814b(dm);
 			break;
 #endif
+#if (RTL8723F_SUPPORT == 1)
+		case ODM_RTL8723F:
+			do_dpk_8723f(dm);
+			break;
+#endif
 
 #if (DM_ODM_SUPPORT_TYPE & (ODM_IOT))
 #if (RTL8195B_SUPPORT == 1)
@@ -2312,6 +2465,7 @@ void halrf_dpk_trigger(void *dm_void)
 		default:
 			break;
 	}
+	halrf_rfk_power_save(dm, true);
 	rf->dpk_progressing_time = odm_get_progressing_time(dm, start_time);
 	RF_DBG(dm, DBG_RF_DPK, "[DPK]DPK progressing_time = %lld ms\n",
 	       rf->dpk_progressing_time);
@@ -2688,6 +2842,12 @@ void halrf_dpk_enable_disable(void *dm_void)
 		break;
 #endif
 
+#if (RTL8723F_SUPPORT == 1)
+	case ODM_RTL8723F:
+		dpk_enable_disable_8723f(dm);
+		break;
+#endif
+
 #endif
 	default:
 		break;
@@ -2711,8 +2871,13 @@ void halrf_dpk_track(void *dm_void)
 	if (rf->is_dpk_in_progress || dm->rf_calibrate_info.is_iqk_in_progress ||
 	    dm->is_psd_in_process || (dpk_info->dpk_path_ok == 0) ||
 	    !(rf->rf_supportability & HAL_RF_DPK_TRACK) || rf->is_tssi_in_progress
-	    || rf->is_txgapk_in_progress || *dm->is_fcs_mode_enable)
+	    || rf->is_txgapk_in_progress)
 		return;
+
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	if (*dm->is_fcs_mode_enable)
+		return;
+#endif
 
 	switch (dm->support_ic_type) {
 #if (RTL8814B_SUPPORT == 1)
@@ -2736,6 +2901,12 @@ void halrf_dpk_track(void *dm_void)
 #if (RTL8721D_SUPPORT == 1)
 	case ODM_RTL8721D:
 		phy_dpk_track_8721d(dm);
+		break;
+#endif
+
+#if (RTL8723F_SUPPORT == 1)
+	case ODM_RTL8723F:
+		dpk_track_8723f(dm);
 		break;
 #endif
 
@@ -2907,6 +3078,7 @@ void _halrf_display_dpk_info(void *dm_void, u32 *_used, char *output, u32 *_out_
 	u32 used = *_used;
 	u32 out_len = *_out_len;
 	char *ic_name = NULL;
+	u8 path;
 
 	switch (dm->support_ic_type) {
 
@@ -3016,10 +3188,18 @@ void _halrf_display_dpk_info(void *dm_void, u32 *_used, char *output, u32 *_out_
 		 (dm->support_ic_type & ODM_IC_2SS) ? ((dpk_info->dpk_path_ok & BIT(1)) >> 1 ? "OK" : "Fail") : "NA",
 		 (dm->support_ic_type & ODM_IC_3SS) ? ((dpk_info->dpk_path_ok & BIT(2)) >> 2 ? "OK" : "Fail") : "NA",
 		 (dm->support_ic_type & ODM_IC_4SS) ? ((dpk_info->dpk_path_ok & BIT(3)) >> 3 ? "OK" : "Fail") : "NA");
-
+#if 0
 	PDM_SNPF(out_len, used, output + used, out_len - used, " %-25s = %d / %d / %d / %d\n",
 		 "DPK thermal (path)", dpk_info->thermal_dpk[0], dpk_info->thermal_dpk[1],
 		 dpk_info->thermal_dpk[2], dpk_info->thermal_dpk[3]);
+#endif
+	PDM_SNPF(out_len, used, output + used, out_len - used, " %-25s = ",
+		 "DPK thermal (path)");
+	for (path = 0; path < KPATH; path++) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 path == (KPATH - 1) ? "%d\n" : "%d / ",
+			 dpk_info->thermal_dpk[path]);
+	}
 
 	PDM_SNPF(out_len, used, output + used, out_len - used, " %-25s = 0x%x\n",
 		 "DPK bkup GNT control", dpk_info->gnt_control);
@@ -3080,8 +3260,10 @@ void halrf_dpk_debug_cmd(void *dm_void, char input[][16], u32 *_used,
 		halrf_dpk_switch(dm, 0);
 	} else {
 		PDM_SNPF(out_len, used, output + used, out_len - used,
-			 "DPK Trigger!!\n");
+			 "DPK Trigger start!!\n");
 		halrf_dpk_trigger(dm);
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "DPK Trigger finish!!\n");
 	}
 }
 
@@ -3208,7 +3390,19 @@ halrf_config_rfk_with_header_file(void *dm_void, u32 config_type)
 			odm_read_and_config_mp_8721d_cal_init(dm);
 	}
 #endif
+#if (RTL8723F_SUPPORT == 1)
+	if (dm->support_ic_type == ODM_RTL8723F) {
+		if (config_type == CONFIG_BB_RF_CAL_INIT)
+			odm_read_and_config_mp_8723f_cal_init(dm);
+	}
+#endif
 
+#if 1
+	if (dm->fw_offload_ability & PHYDM_PHY_PARAM_OFFLOAD) {
+		result = phydm_set_reg_by_fw(dm, PHYDM_HALMAC_CMD_END, 0, 0, 0, (enum rf_path)0, 0);
+		RF_DBG(dm, DBG_RF_IQK,"phy param offload end!result = %d", result);
+	}
+#endif
 	return result;
 }
 
@@ -3221,10 +3415,12 @@ void halrf_txgapk_trigger(void *dm_void)
 	if (!(rf->rf_supportability & HAL_RF_TXGAPK))
 		return;
 
+	rf->rfk_type = RF04_TXGAPK;
 	halrf_rfk_handshake(dm, true);
 
 	start_time = odm_get_current_time(dm);
 	rf->is_txgapk_in_progress = true;
+	halrf_rfk_power_save(dm, false);
 
 	switch (dm->support_ic_type) {
 #if (DM_ODM_SUPPORT_TYPE & (ODM_IOT))
@@ -3253,9 +3449,16 @@ void halrf_txgapk_trigger(void *dm_void)
 	break;
 #endif
 
+#if (RTL8723F_SUPPORT == 1)
+	case ODM_RTL8723F:
+		halrf_txgapk_8723f(dm);
+	break;
+#endif
+
 	default:
 		break;
-	}
+	}	
+	halrf_rfk_power_save(dm, true);
 	rf->is_txgapk_in_progress = false;
 
 	halrf_rfk_handshake(dm, false);
@@ -3296,6 +3499,12 @@ void halrf_tssi_get_efuse(void *dm_void)
 	}
 #endif
 
+#if (RTL8723F_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8723F) {
+		halrf_tssi_get_efuse_8723f(dm);
+	}
+#endif
+
 }
 
 void halrf_do_rxbb_dck(void *dm_void)
@@ -3327,6 +3536,14 @@ void halrf_do_tssi(void *dm_void)
 #if (RTL8197G_SUPPORT == 1)
 	if (dm->support_ic_type == ODM_RTL8197G)
 		halrf_do_tssi_8197g(dm);
+#endif
+
+#if (RTL8723F_SUPPORT == 1)
+	if (dm->support_ic_type == ODM_RTL8723F) {
+		halrf_rfk_power_save(dm, false);
+		halrf_do_tssi_8723f(dm);
+		halrf_rfk_power_save(dm, true);
+	}
 #endif
 
 }
@@ -3371,6 +3588,10 @@ u32 halrf_set_tssi_value(void *dm_void, u32 tssi_value)
 	if (dm->support_ic_type & ODM_RTL8814B)
 		return halrf_set_tssi_value_8814b(dm, tssi_value);
 #endif
+#if (RTL8723F_SUPPORT == 1)
+		if (dm->support_ic_type & ODM_RTL8723F)
+		return halrf_tssi_set_de_8723f(dm, tssi_value);
+#endif
 
 	return 0;
 }
@@ -3408,6 +3629,10 @@ void halrf_tssi_set_de_for_tx_verify(void *dm_void, u32 tssi_de, u8 path)
 		halrf_tssi_set_de_for_tx_verify_8197g(dm, tssi_de, path);
 #endif
 
+#if (RTL8723F_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8723F)
+		halrf_tssi_set_de_for_tx_verify_8723f(dm, tssi_de, path);
+#endif
 }
 
 u32 halrf_query_tssi_value(void *dm_void)
@@ -3539,7 +3764,7 @@ u8 halrf_get_tssi_codeword_for_txindex(void *dm_void)
 #if (RTL8814B_SUPPORT == 1)
 	if (dm->support_ic_type & ODM_RTL8814B) {
 #if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
-		return 100;
+		return 80;
 #else
 		return 60;
 #endif
@@ -3630,6 +3855,18 @@ u32 halrf_tssi_get_de(void *dm_void, u8 path)
 	if (dm->support_ic_type & ODM_RTL8197G)
 		return halrf_tssi_get_de_8197g(dm, path);
 #endif
+
+	return 0;
+}
+
+u32 halrf_get_online_tssi_de(void *dm_void, u8 path, s32 pout)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+#if (RTL8723F_SUPPORT == 1)
+	if (dm->support_ic_type & ODM_RTL8723F)
+		return halrf_get_online_tssi_de_8723f(dm, path, pout);
+#endif
 	return 0;
 }
 
@@ -3700,6 +3937,114 @@ void halrf_txgap_enable_disable(void *dm_void, u8 enable)
 	}
 }
 
+#if (RTL8723F_SUPPORT == 1)
+void halrf_xtal_thermal_track(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct _hal_rf_ *rf = &dm->rf_table;
+	struct _halrf_tssi_data *tssi = &rf->halrf_tssi_data;
+	struct dm_rf_calibration_struct *cali_info = &(dm->rf_calibrate_info);
+	s8	*delta_swing_table_xtal_up = NULL;
+	u8	xtal_offset_eanble = 0, i =0;
+	s8	thermal_value = 0, thermal_detla = 0;
+	u8  	thermal_base = 0;
+	s8  	xtal_table_up[DELTA_SWINGIDX_SIZE] = {0};
+	s8  	xtal_table_down[DELTA_SWINGIDX_SIZE] = {0};
+	u32 	reg_val = 0, crystal_cap = 0;
+
+	RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+	       "[RF][xtal] ======>%s\n", __func__);
+
+	if ( dm->support_ic_type == ODM_RTL8723F) {	
+		if (rf->is_dpk_in_progress || dm->rf_calibrate_info.is_iqk_in_progress ||
+		    dm->is_psd_in_process || rf->is_tssi_in_progress ||
+		    !(rf->rf_supportability & HAL_RF_DPK_TRACK) || 
+		    rf->is_txgapk_in_progress)
+			return;
+
+		if(tssi->thermal[0] == 0xff) {
+			//RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "[RF][xtal] thermal 0xFF, return!\n");
+			return;
+		} else {
+			thermal_base = tssi->thermal[0];
+			//RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "[RF][xtal] thermal_base = 0x%x\n", thermal_base);
+		}
+
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "[RF][xtal] thermal_base = 0x%x\n", thermal_base);
+		
+		thermal_value = (s8)odm_get_rf_reg(dm, RF_PATH_A, RF_0x42, 0x7E);	/* 0x42: RF Reg[6:1]*/
+
+		thermal_detla = (s8)(thermal_value - thermal_base);
+		
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "[RF][xtal] cali_info->xtal_offset = 0x%x\n", cali_info->xtal_offset);
+
+		cali_info->xtal_offset_last = cali_info->xtal_offset;
+		/*
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+						   "[RF][Xtal] cali_info->delta_swing_table_xtal_p = %d\n", cali_info->delta_swing_table_xtal_p[2]);
+		*/
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] thermal_value = 0x%x, thermal_detla = 0x%x, xtal_offset_last = 0x%x\n", 
+		       thermal_value, thermal_detla, cali_info->xtal_offset_last);
+		odm_move_memory(dm, xtal_table_up, cali_info->delta_swing_table_xtal_p, sizeof(xtal_table_up));//(void *)
+		odm_move_memory(dm, xtal_table_down, cali_info->delta_swing_table_xtal_n, sizeof(xtal_table_down));
+		/*
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+						   "[RF][Xtal] xtal_table_up[1] = %d\n", xtal_table_up[1]);*/
+		if(thermal_detla < 0) {
+			
+			if (thermal_detla < -29)
+				i = 29;
+			else
+				i = (u8)(-1 * thermal_detla);
+			cali_info->xtal_offset = xtal_table_down[i];
+		} else {
+
+			if (thermal_detla >= 30)
+				i = 29;
+			else
+				i = thermal_detla;
+
+			cali_info->xtal_offset = xtal_table_up[i];
+		}
+		
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] xtal_offset = %d\n", cali_info->xtal_offset);
+		if (cali_info->xtal_offset_last == cali_info->xtal_offset)
+			xtal_offset_eanble = 0;
+		else
+			xtal_offset_eanble = 1;
+		RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] xtal_offset_eanble = %d\n", xtal_offset_eanble);
+		if (xtal_offset_eanble != 0) {
+			RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "**********Enter Xtal Tracking**********\n");
+			RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] R_0x103c[16:10] = 0x%x\n", odm_get_mac_reg(dm, R_0x103c, 0x0001FC00));
+
+			crystal_cap = dm->dm_cfo_track.crystal_cap_default & 0x7F;
+			RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] DEFAULT crystal_cap = 0x%x\n", crystal_cap);
+			reg_val = crystal_cap + cali_info->xtal_offset;
+			//reg_val = (u32)(odm_get_mac_reg(dm, R_0x103c, 0x0001FC00) + cali_info->xtal_offset);
+			RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] reg_val = 0x%x\n", reg_val);
+			/* write 0x103c[23:17] = 0x103c[16:10] = crystal_cap */
+			crystal_cap = reg_val | (reg_val << 7);
+			odm_set_mac_reg(dm, R_0x103c, 0x00FFFC00, crystal_cap);
+			RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] R_0x103c[16:10] = 0x%x\n", odm_get_mac_reg(dm, R_0x103c, 0x0001FC00));
+			RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+		       "[RF][Xtal] R_0x103c[23:17] = 0x%x\n", odm_get_mac_reg(dm, R_0x103c, 0x00FE0000));
+			RF_DBG(dm, DBG_RF_TX_PWR_TRACK, "**********End Xtal Tracking**********\n");
+		}
+		//odm_set_rf_reg(dm, RF_PATH_A, RF_0x42, 0x30000, 0x3);
+		//delay
+	}
+	/*RF_DBG(dm, DBG_RF_TX_PWR_TRACK,
+	       "[RF][xtal] <======%s\n", __func__);*/
+}
+#endif
+
 void _halrf_dump_subpage(void *dm_void, u32 *_used, char *output, u32 *_out_len, u8 page)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
@@ -3711,6 +4056,8 @@ void _halrf_dump_subpage(void *dm_void, u32 *_used, char *output, u32 *_out_len,
 	PDM_SNPF(out_len, used, output + used, out_len - used,
 		 "\n===============[ Subpage_%d start]===============\n", page);
 
+	RF_DBG(dm, DBG_RF_RFK, " ===============[ Subpage_%d start]===============\n", page);
+
 	odm_set_bb_reg(dm, R_0x1b00, BIT(2) | BIT(1), page);
 
 	for (addr = 0x1b00; addr < 0x1c00; addr += 0x10) {
@@ -3720,6 +4067,11 @@ void _halrf_dump_subpage(void *dm_void, u32 *_used, char *output, u32 *_out_len,
 		 	odm_get_bb_reg(dm, addr + 0x4, MASKDWORD),
 		 	odm_get_bb_reg(dm, addr + 0x8, MASKDWORD),
 		 	odm_get_bb_reg(dm, addr + 0xc, MASKDWORD));
+		RF_DBG(dm, DBG_RF_RFK, " 0x%x : 0x%08x  0x%08x  0x%08x  0x%08x\n", addr,
+		       odm_get_bb_reg(dm, addr, MASKDWORD),
+		       odm_get_bb_reg(dm, addr + 0x4, MASKDWORD),
+		       odm_get_bb_reg(dm, addr + 0x8, MASKDWORD),
+		       odm_get_bb_reg(dm, addr + 0xc, MASKDWORD));
 	}
 
 	*_used = used;
@@ -3742,14 +4094,24 @@ void halrf_dump_rfk_reg(void *dm_void, char input[][16], u32 *_used,
 	if (!(dm->support_ic_type & (ODM_IC_11AC_SERIES |  ODM_IC_JGR3_SERIES))) {
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "CMD is Unsupported due to IC type!!!\n");
+		RF_DBG(dm, DBG_RF_RFK, "[RFK] CMD is Unsupported due to IC type!!!\n");
 		return;
 	} else if (rf->is_dpk_in_progress || dm->rf_calibrate_info.is_iqk_in_progress ||
 	    dm->is_psd_in_process || rf->is_tssi_in_progress || rf->is_txgapk_in_progress) {
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "Bypass CMD due to RFK is doing!!!\n");
+		RF_DBG(dm, DBG_RF_RFK, "[RFK] Bypass CMD due to RFK is doing!!!\n");
 		return;
 	}
 
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	if (*dm->is_fcs_mode_enable) {
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "Bypass CMD due to FCS mode!!!\n");
+		RF_DBG(dm, DBG_RF_RFK, "[RFK] Bypass CMD due to FCS mode!!!\n");
+		return;
+	}
+#endif
 	supportability = rf->rf_supportability;
 
 	/*to avoid DPK track interruption*/

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -45,7 +44,7 @@ void phydm_dig_recorder_reset(void *dm_void)
 }
 
 void phydm_dig_recorder(void *dm_void, u8 igi_curr,
-			u32 fa_cnt)
+			u32 fa_metrics)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_dig_struct *dig_t = &dm->dm_dig_table;
@@ -61,7 +60,7 @@ void phydm_dig_recorder(void *dm_void, u8 igi_curr,
 	if (dm->first_connect) {
 		phydm_dig_recorder_reset(dm);
 		dig_rc->igi_history[0] = igi_curr;
-		dig_rc->fa_history[0] = fa_cnt;
+		dig_rc->fa_history[0] = fa_metrics;
 		return;
 	}
 
@@ -80,7 +79,7 @@ void phydm_dig_recorder(void *dm_void, u8 igi_curr,
 	dig_rc->fa_history[3] = dig_rc->fa_history[2];
 	dig_rc->fa_history[2] = dig_rc->fa_history[1];
 	dig_rc->fa_history[1] = dig_rc->fa_history[0];
-	dig_rc->fa_history[0] = fa_cnt;
+	dig_rc->fa_history[0] = fa_metrics;
 
 	PHYDM_DBG(dm, DBG_DIG, "igi_history[3:0] = {0x%x, 0x%x, 0x%x, 0x%x}\n",
 		  dig_rc->igi_history[3], dig_rc->igi_history[2],
@@ -200,6 +199,9 @@ void phydm_fa_threshold_check(void *dm_void, boolean is_dfs_band)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_dig_struct *dig_t = &dm->dm_dig_table;
+	u8 i = 0;
+
+	dig_t->dm_dig_fa_th1 = DM_DIG_FA_TH1;
 
 	if (dig_t->is_dbg_fa_th) {
 		PHYDM_DBG(dm, DBG_DIG, "Manual Fix FA_th\n");
@@ -229,6 +231,13 @@ void phydm_fa_threshold_check(void *dm_void, boolean is_dfs_band)
 			dig_t->fa_th[1] = 4000;
 			dig_t->fa_th[2] = 5000;
 		}
+	}
+
+	if ((dig_t->fa_source >= 1) && (dig_t->fa_source <= 3)) {
+		for (i = 0; i < 3; i++)
+			dig_t->fa_th[i] *= OFDM_FA_EXP_DURATION;
+
+		dig_t->dm_dig_fa_th1 *= OFDM_FA_EXP_DURATION;
 	}
 
 	PHYDM_DBG(dm, DBG_DIG, "FA_th={%d,%d,%d}\n", dig_t->fa_th[0],
@@ -333,6 +342,13 @@ void phydm_fa_cnt_statistics_jgr3(void *dm_void)
 	if (!(dm->support_ic_type & ODM_IC_JGR3_SERIES))
 		return;
 
+	ret_value = odm_get_bb_reg(dm, R_0x2de4, MASKDWORD);
+	fa_t->cnt_cck_txen = (ret_value & 0xffff);
+	fa_t->cnt_cck_txon = ((ret_value & 0xffff0000) >> 16);
+	ret_value = odm_get_bb_reg(dm, R_0x2de0, MASKDWORD);
+	fa_t->cnt_ofdm_txen = (ret_value & 0xffff);
+	fa_t->cnt_ofdm_txon = ((ret_value & 0xffff0000) >> 16);
+
 	ret_value = odm_get_bb_reg(dm, R_0x2d20, MASKDWORD);
 	fa_t->cnt_fast_fsync = ret_value & 0xffff;
 	fa_t->cnt_sb_search_fail = (ret_value & 0xffff0000) >> 16;
@@ -348,7 +364,10 @@ void phydm_fa_cnt_statistics_jgr3(void *dm_void)
 	fa_t->cnt_mcs_fail = ret_value & 0xffff;
 
 	/* read CCK CRC32 counter */
-	ret_value = odm_get_bb_reg(dm, R_0x2c04, MASKDWORD);
+	if (dm->support_ic_type & ODM_RTL8723F)
+		ret_value = odm_get_bb_reg(dm, R_0x2aac, MASKDWORD);
+	else
+		ret_value = odm_get_bb_reg(dm, R_0x2c04, MASKDWORD);
 	fa_t->cnt_cck_crc32_ok = ret_value & 0xffff;
 	fa_t->cnt_cck_crc32_error = (ret_value & 0xffff0000) >> 16;
 
@@ -408,15 +427,26 @@ void phydm_fa_cnt_statistics_jgr3(void *dm_void)
 			      fa_t->cnt_mcs_fail_vht + fa_t->cnt_crc8_fail_vhta;
 
 	/* Read CCK FA counter */
-	fa_t->cnt_cck_fail = odm_get_bb_reg(dm, R_0x1a5c, MASKLWORD);
+	if (dm->support_ic_type & ODM_RTL8723F){
+		ret_value= odm_get_bb_reg(dm, R_0x2aa8, MASKLWORD);
+	       fa_t->cnt_cck_fail=(ret_value&0xffff)+((ret_value&0xffff0000)>>16);
+		}
+	else
+		fa_t->cnt_cck_fail = odm_get_bb_reg(dm, R_0x1a5c, MASKLWORD);
 
 	/* read CCK/OFDM CCA counter */
 	ret_value = odm_get_bb_reg(dm, R_0x2c08, MASKDWORD);
 	fa_t->cnt_ofdm_cca = ((ret_value & 0xffff0000) >> 16);
+	if (dm->support_ic_type & ODM_RTL8723F)
+		ret_value = odm_get_bb_reg(dm, R_0x2aa0, MASKDWORD);
 	fa_t->cnt_cck_cca = ret_value & 0xffff;
 
 	/* @CCK RxIQ weighting = 1 => 0x1a14[9:8]=0x0 */
-	cck_enable = odm_get_bb_reg(dm, R_0x1a14, 0x300);
+	if (dm->support_ic_type & ODM_RTL8723F)
+		cck_enable = odm_get_bb_reg(dm, R_0x2a24, BIT(13));
+	else
+		cck_enable = odm_get_bb_reg(dm, R_0x1a14, 0x300);
+	
 	if (cck_enable == 0x0) { /* @if(*dm->band_type == ODM_BAND_2_4G) */
 		fa_t->cnt_all = fa_t->cnt_ofdm_fail + fa_t->cnt_cck_fail;
 		fa_t->cnt_cca_all = fa_t->cnt_cck_cca + fa_t->cnt_ofdm_cca;
@@ -538,17 +568,18 @@ void odm_write_dig(void *dm_void, u8 new_igi)
 		#endif
 
 		/*@Add by YuChen for USB IO too slow issue*/
-		if (!(dm->support_ic_type & ODM_IC_PWDB_EDCCA)) {
-			if (*dm->edcca_mode == PHYDM_EDCCA_ADAPT_MODE &&
-			    new_igi < dig_t->cur_ig_value) {
-				dig_t->cur_ig_value = new_igi;
-				phydm_adaptivity(dm);
-			}
-		} else {
-			if (*dm->edcca_mode == PHYDM_EDCCA_ADAPT_MODE &&
-			    new_igi > dig_t->cur_ig_value) {
-				dig_t->cur_ig_value = new_igi;
-				phydm_adaptivity(dm);
+		if (*dm->edcca_mode == PHYDM_EDCCA_ADAPT_MODE) {
+			if (!(dm->support_ic_type & ODM_IC_PWDB_EDCCA)) {
+				if (new_igi < dig_t->cur_ig_value ||
+				    dm->is_pause_dig) {
+					dig_t->cur_ig_value = new_igi;
+					phydm_adaptivity(dm);
+				}
+			} else {
+				if (new_igi > dig_t->cur_ig_value) {
+					dig_t->cur_ig_value = new_igi;
+					phydm_adaptivity(dm);
+				}
 			}
 		}
 		phydm_write_dig_reg(dm, new_igi);
@@ -637,12 +668,14 @@ void odm_pause_dig(void *dm_void, enum phydm_pause_type type,
 	switch (type) {
 	case PHYDM_PAUSE:
 	case PHYDM_PAUSE_NO_SET: {
+		dm->is_pause_dig = true;
 		rpt = phydm_pause_func(dm, F00_DIG, PHYDM_PAUSE, lv, 1, &igi);
 		break;
 	}
 
 	case PHYDM_RESUME: {
 		rpt = phydm_pause_func(dm, F00_DIG, PHYDM_RESUME, lv, 1, &igi);
+		dm->is_pause_dig = false;
 		break;
 	}
 	default:
@@ -836,11 +869,12 @@ void phydm_hwigi(void *dm_void)
 	u8 i = 0;
 	u8 hwigi = 0x0;
 	u8 macid = 0;
+	u8 macid_cnt = 0;
+	u64 macid_cur = 0;
+	u64 macid_diff = 0;
+	u64 macid_mask = 0;
 
 	if (!(bb_ctrl->hwigi_watchdog_en)) {
-		return;
-	} else if (dm->first_disconnect) {
-		phydm_rst_hwigi(dm);
 		return;
 	}
 
@@ -856,6 +890,9 @@ void phydm_hwigi(void *dm_void)
 
 			dm_ram_per_sta = &bb_ctrl->pram_sta_ctrl[macid];
 			rssi = &sta->rssi_stat;
+			macid_mask = (u64)BIT(sta->mac_id);
+			bb_ctrl->hwigi_macid_is_linked |= macid_mask;
+			macid_cur |= macid_mask;
 			PHYDM_DBG(dm, DBG_DIG,
 				  "STA_id=%d, MACID=%d, RSSI=%d, hwigi_en=%d, hwigi=0x%x\n",
 				  i, sta->mac_id, rssi->rssi,
@@ -865,26 +902,35 @@ void phydm_hwigi(void *dm_void)
 			hwigi = MAX_2((u8)(rssi->rssi + 10),
 				      dig_t->cur_ig_value);
 
-			if (rssi->rssi + 10 > DIG_MAX_PERFORMANCE_MODE)
+			if (hwigi > DIG_MAX_PERFORMANCE_MODE)
 				hwigi = DIG_MAX_PERFORMANCE_MODE;
-			else if (rssi->rssi + 10 < DIG_MIN_PERFORMANCE)
+			else if (hwigi < DIG_MIN_PERFORMANCE)
 				hwigi = DIG_MIN_PERFORMANCE;
 
 			if (dm_ram_per_sta->hw_igi == hwigi) {
 				PHYDM_DBG(dm, DBG_DIG,
 					  "hwigi not change!\n");
-				return;
+			} else {
+
+				PHYDM_DBG(dm, DBG_DIG,
+					  "hwigi update: ((0x%x)) -> ((0x%x))\n",
+					  dm_ram_per_sta->hw_igi, hwigi);
+
+				phydm_wt_hwigi_table(dm, sta->mac_id, true, hwigi);
 			}
-
-			PHYDM_DBG(dm, DBG_DIG,
-				  "hwigi update: ((0x%x)) -> ((0x%x))\n",
-				  dm_ram_per_sta->hw_igi, hwigi);
-
-			phydm_wt_hwigi_table(dm, sta->mac_id, true, hwigi);
 
 			if (sta_cnt == dm->number_linked_client)
 				break;
 		}
+	}
+	macid_diff = bb_ctrl->hwigi_macid_is_linked ^ macid_cur;
+	if (macid_diff)
+		bb_ctrl->hwigi_macid_is_linked &= ~macid_diff;
+	while (macid_diff) {
+		if (macid_diff & 0x1)
+			phydm_wt_hwigi_table(dm, macid_cnt, false, 0x0);
+		macid_cnt++;
+		macid_diff >>= 1;
 	}
 }
 
@@ -970,9 +1016,11 @@ void phydm_dig_init(void *dm_void)
 	dig_t->fa_th[0] = 250;
 	dig_t->fa_th[1] = 500;
 	dig_t->fa_th[2] = 750;
+	dig_t->dm_dig_fa_th1 = DM_DIG_FA_TH1;
 	dig_t->is_dbg_fa_th = false;
 	dig_t->igi_dyn_up_hit = false;
 	dig_t->fw_dig_enable = false;
+	dig_t->fa_source = 0;
 
 #if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
 	/* @For RTL8881A */
@@ -983,18 +1031,19 @@ void phydm_dig_init(void *dm_void)
 	dig_t->rx_gain_range_min = dig_t->cur_ig_value;
 
 #if (RTL8822B_SUPPORT || RTL8197F_SUPPORT || RTL8192F_SUPPORT)
-	dig_t->enable_adjust_big_jump = 1;
-	if (dm->support_ic_type & ODM_RTL8822B)
-		ret_value = odm_get_bb_reg(dm, R_0x8c8, MASKLWORD);
-	else if (dm->support_ic_type & (ODM_RTL8197F | ODM_RTL8192F))
-		ret_value = odm_get_bb_reg(dm, R_0xc74, MASKLWORD);
-
-	dig_t->big_jump_step1 = (u8)(ret_value & 0xe) >> 1;
-	dig_t->big_jump_step2 = (u8)(ret_value & 0x30) >> 4;
-	dig_t->big_jump_step3 = (u8)(ret_value & 0xc0) >> 6;
-
 	if (dm->support_ic_type &
 	    (ODM_RTL8822B | ODM_RTL8197F | ODM_RTL8192F)) {
+		dig_t->enable_adjust_big_jump = 1;
+
+		if (dm->support_ic_type & ODM_RTL8822B)
+			ret_value = odm_get_bb_reg(dm, R_0x8c8, MASKLWORD);
+		else if (dm->support_ic_type & (ODM_RTL8197F | ODM_RTL8192F))
+			ret_value = odm_get_bb_reg(dm, R_0xc74, MASKLWORD);
+
+		dig_t->big_jump_step1 = (u8)(ret_value & 0xe) >> 1;
+		dig_t->big_jump_step2 = (u8)(ret_value & 0x30) >> 4;
+		dig_t->big_jump_step3 = (u8)(ret_value & 0xc0) >> 6;
+
 		for (i = 0; i < sizeof(dig_t->big_jump_lmt); i++) {
 			if (dig_t->big_jump_lmt[i] == 0)
 				dig_t->big_jump_lmt[i] = 0x64;
@@ -1175,22 +1224,22 @@ void phydm_dig_abnormal_case(struct dm_struct *dm)
 		  dig_t->rx_gain_range_max, dig_t->rx_gain_range_min);
 }
 
-u8 phydm_new_igi_by_fa(struct dm_struct *dm, u8 igi, u32 fa_cnt, u8 *step_size)
+u8 phydm_new_igi_by_fa(struct dm_struct *dm, u8 igi, u32 fa_metrics,
+		       u8 *step_size)
 {
-	boolean dig_go_up_check = true;
 	struct phydm_dig_struct *dig_t = &dm->dm_dig_table;
 
-	if (fa_cnt > dig_t->fa_th[2] && dig_go_up_check)
+	if (fa_metrics > dig_t->fa_th[2])
 		igi = igi + step_size[0];
-	else if ((fa_cnt > dig_t->fa_th[1]) && dig_go_up_check)
+	else if (fa_metrics > dig_t->fa_th[1])
 		igi = igi + step_size[1];
-	else if (fa_cnt < dig_t->fa_th[0])
+	else if (fa_metrics < dig_t->fa_th[0])
 		igi = igi - step_size[2];
 
 	return igi;
 }
 
-u8 phydm_get_new_igi(struct dm_struct *dm, u8 igi, u32 fa_cnt,
+u8 phydm_get_new_igi(struct dm_struct *dm, u8 igi, u32 fa_metrics,
 		     boolean is_dfs_band)
 {
 	struct phydm_dig_struct *dig_t = &dm->dm_dig_table;
@@ -1241,17 +1290,18 @@ u8 phydm_get_new_igi(struct dm_struct *dm, u8 igi, u32 fa_cnt,
 		/* @4 Abnormal # beacon case */
 		#if (DM_ODM_SUPPORT_TYPE & (ODM_WIN | ODM_CE))
 		if (dm->phy_dbg_info.num_qry_beacon_pkt < 5 &&
-		    fa_cnt < DM_DIG_FA_TH1 && dm->bsta_state &&
-		    dm->support_ic_type != ODM_RTL8723D) {
+		    fa_metrics < dig_t->dm_dig_fa_th1 && dm->bsta_state &&
+		    dm->support_ic_type != ODM_RTL8723D &&
+		    dm->support_ic_type != ODM_RTL8822C) {
 			dig_t->rx_gain_range_min = 0x1c;
 			igi = dig_t->rx_gain_range_min;
 			PHYDM_DBG(dm, DBG_DIG, "Beacon_num=%d,force igi=0x%x\n",
 				  dm->phy_dbg_info.num_qry_beacon_pkt, igi);
 		} else {
-			igi = phydm_new_igi_by_fa(dm, igi, fa_cnt, step);
+			igi = phydm_new_igi_by_fa(dm, igi, fa_metrics, step);
 		}
 		#else
-		igi = phydm_new_igi_by_fa(dm, igi, fa_cnt, step);
+		igi = phydm_new_igi_by_fa(dm, igi, fa_metrics, step);
 		#endif
 	} else {
 		/* @2 Before link */
@@ -1263,9 +1313,9 @@ u8 phydm_get_new_igi(struct dm_struct *dm, u8 igi, u32 fa_cnt,
 				  "First disconnect:foce IGI to lower bound\n");
 		} else {
 			PHYDM_DBG(dm, DBG_DIG, "Pre_IGI=((0x%x)), FA=((%d))\n",
-				  igi, fa_cnt);
+				  igi, fa_metrics);
 
-			igi = phydm_new_igi_by_fa(dm, igi, fa_cnt, step);
+			igi = phydm_new_igi_by_fa(dm, igi, fa_metrics, step);
 		}
 	}
 
@@ -1282,8 +1332,8 @@ u8 phydm_get_new_igi(struct dm_struct *dm, u8 igi, u32 fa_cnt,
 	PHYDM_DBG(dm, DBG_DIG, "igi_dyn_up_hit=%d\n",
 		  dig_t->igi_dyn_up_hit);
 
-	PHYDM_DBG(dm, DBG_DIG, "fa_cnt = %d, IGI: 0x%x -> 0x%x\n",
-		  fa_cnt, dig_t->cur_ig_value, igi);
+	PHYDM_DBG(dm, DBG_DIG, "fa_metrics = %d, IGI: 0x%x -> 0x%x\n",
+		  fa_metrics, dig_t->cur_ig_value, igi);
 
 	return igi;
 }
@@ -1306,6 +1356,44 @@ boolean phydm_dig_dfs_mode_en(void *dm_void)
 	return dfs_mode_en;
 }
 
+void phydm_dig_fa_source(void *dm_void, u8 fa_source, u32 *fa_metrics)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_fa_struct *fa = &dm->false_alm_cnt;
+
+	switch (fa_source) {
+		case 1:
+			*fa_metrics = fa->time_fa_exp;
+			break;
+		#ifdef IFS_CLM_SUPPORT
+		case 2:
+			if (fa->time_fa_ifs_clm) {
+				*fa_metrics = fa->time_fa_ifs_clm;
+			} else {
+				fa_source = 1;
+				*fa_metrics = fa->time_fa_exp;
+			}
+			break;
+		#endif
+		#ifdef FAHM_SUPPORT
+		case 3:
+			if (fa->time_fa_fahm) {
+				*fa_metrics = fa->time_fa_fahm;
+			} else {
+				fa_source = 1;
+				*fa_metrics = fa->time_fa_exp;
+			}
+			break;
+		#endif
+		default:
+			break;
+	}
+
+	PHYDM_DBG(dm, DBG_DIG,
+		  "fa_source:%d, fa_cnt=%d ,time_fa_exp=%d, fa_metrics=%d\n",
+		  fa_source, fa->cnt_all, fa->time_fa_exp, *fa_metrics);
+}
+
 void phydm_dig(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
@@ -1316,30 +1404,37 @@ void phydm_dig(void *dm_void)
 #endif
 	u8 igi = dig_t->cur_ig_value;
 	u8 new_igi = 0x20;
-	u32 fa_cnt = fa->cnt_all;
+	u32 fa_metrics = fa->cnt_all;
 	boolean dfs_mode_en = false;
 
-#ifdef PHYDM_DCC_ENHANCE
-	if (dm->dm_dcc_info.dcc_en)
-		fa_cnt = fa->cnt_ofdm_fail; /*OFDM FA only*/
-#endif
+	PHYDM_DBG(dm, DBG_DIG, "%s Start===>\n", __func__);
 
-#ifdef PHYDM_TDMA_DIG_SUPPORT
+	#ifdef PHYDM_DCC_ENHANCE
+	if (dm->dm_dcc_info.dcc_en) {
+		fa_metrics = fa->cnt_ofdm_fail; /*OFDM FA only*/
+		dig_t->fa_source = 0;
+	}
+	#endif
+
+	#ifdef PHYDM_TDMA_DIG_SUPPORT
 	if (!(dm->original_dig_restore)) {
 		if (dig_t->cur_ig_value_tdma == 0)
 			dig_t->cur_ig_value_tdma = dig_t->cur_ig_value;
 
 		igi = dig_t->cur_ig_value_tdma;
-		fa_cnt = falm_cnt_acc->cnt_all_1sec;
+		fa_metrics = falm_cnt_acc->cnt_all_1sec;
+		dig_t->fa_source = 0;
 	}
-#endif
+	#endif
 
 	if (phydm_dig_abort(dm)) {
 		dig_t->cur_ig_value = phydm_get_igi(dm, BB_PATH_A);
 		return;
 	}
 
-	PHYDM_DBG(dm, DBG_DIG, "%s Start===>\n", __func__);
+	if (dig_t->fa_source)
+		phydm_dig_fa_source(dm, dig_t->fa_source, &fa_metrics);
+
 	PHYDM_DBG(dm, DBG_DIG,
 		  "is_linked=%d, RSSI=%d, 1stConnect=%d, 1stDisconnect=%d\n",
 		  dm->is_linked, dm->rssi_min,
@@ -1353,7 +1448,7 @@ void phydm_dig(void *dm_void)
 
 #ifdef CFG_DIG_DAMPING_CHK
 	/*Record IGI History*/
-	phydm_dig_recorder(dm, igi, fa_cnt);
+	phydm_dig_recorder(dm, igi, fa_metrics);
 
 	/*@DIG Damping Check*/
 	phydm_dig_damping_chk(dm);
@@ -1372,7 +1467,7 @@ void phydm_dig(void *dm_void)
 	phydm_fa_threshold_check(dm, dfs_mode_en);
 
 	/*Select new IGI by FA */
-	new_igi = phydm_get_new_igi(dm, igi, fa_cnt, dfs_mode_en);
+	new_igi = phydm_get_new_igi(dm, igi, fa_metrics, dfs_mode_en);
 
 	/* @1 Update status */
 	#ifdef PHYDM_TDMA_DIG_SUPPORT
@@ -1440,6 +1535,31 @@ void phydm_dig_by_rssi_lps(void *dm_void)
 #endif
 }
 
+void phydm_get_dig_coverage(void *dm_void, u8 *max, u8 *min)
+{
+	*min = DIG_MIN_COVERAGE;
+	*max = DIG_MAX_PERFORMANCE_MODE;
+}
+
+u8 phydm_get_igi_for_target_pin_scan(void *dm_void, u8 rssi)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 igi = 0;
+	u8 max = 0;
+	u8 min = 0;
+
+	igi = rssi + 10;
+
+	phydm_get_dig_coverage(dm, &max, &min);
+
+	if (igi > max)
+		igi = max;
+	else if (igi < min)
+		igi = min;
+
+	return igi;
+}
+
 /* @3============================================================
  * 3 FASLE ALARM CHECK
  * 3============================================================
@@ -1468,6 +1588,11 @@ void phydm_false_alarm_counter_reg_reset(void *dm_void)
 
 #ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		if (dm->support_ic_type & ODM_RTL8723F) {
+			/* @reset CCK FA and CCA counter */
+			odm_set_bb_reg(dm, R_0x2a44, BIT(21), 0);
+			odm_set_bb_reg(dm, R_0x2a44, BIT(21), 1);
+		} else {
 		/* @reset CCK FA counter */
 		odm_set_bb_reg(dm, R_0x1a2c, BIT(15) | BIT(14), 0);
 		odm_set_bb_reg(dm, R_0x1a2c, BIT(15) | BIT(14), 2);
@@ -1475,7 +1600,7 @@ void phydm_false_alarm_counter_reg_reset(void *dm_void)
 		/* @reset CCK CCA counter */
 		odm_set_bb_reg(dm, R_0x1a2c, BIT(13) | BIT(12), 0);
 		odm_set_bb_reg(dm, R_0x1a2c, BIT(13) | BIT(12), 2);
-
+		}
 		/* @Disable common rx clk gating => WLANBB-1106*/
 		odm_set_bb_reg(dm, R_0x1d2c, BIT(31), 0);
 		/* @reset OFDM CCA counter, OFDM FA counter*/
@@ -1544,6 +1669,9 @@ void phydm_false_alarm_counter_reg_hold(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	if (dm->support_ic_type & ODM_RTL8723F)
+		return;
+
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
 		/* @hold cck counter */
 		odm_set_bb_reg(dm, R_0x1a2c, BIT(12), 1);
@@ -1573,6 +1701,13 @@ void phydm_fa_cnt_statistics_n(void *dm_void)
 
 	/* @hold ofdm & cck counter */
 	phydm_false_alarm_counter_reg_hold(dm);
+
+	reg = odm_get_bb_reg(dm, R_0x9d0, MASKDWORD);
+	fa_t->cnt_cck_txon = (reg & 0xffff);
+	fa_t->cnt_cck_txen = ((reg & 0xffff0000) >> 16);
+	reg = odm_get_bb_reg(dm, R_0x9cc, MASKDWORD);
+	fa_t->cnt_ofdm_txon = (reg & 0xffff);
+	fa_t->cnt_ofdm_txen = ((reg & 0xffff0000) >> 16);
 
 	reg = odm_get_bb_reg(dm, ODM_REG_OFDM_FA_TYPE1_11N, MASKDWORD);
 	fa_t->cnt_fast_fsync = (reg & 0xffff);
@@ -1673,6 +1808,12 @@ void phydm_fa_cnt_statistics_ac(void *dm_void)
 	if (!(dm->support_ic_type & ODM_IC_11AC_SERIES))
 		return;
 
+	ret_value = odm_get_bb_reg(dm, R_0xf50, MASKDWORD);
+	fa_t->cnt_cck_txen = (ret_value & 0xffff);
+	fa_t->cnt_ofdm_txen = ((ret_value & 0xffff0000) >> 16);
+	fa_t->cnt_cck_txon = (u16)odm_get_bb_reg(dm, R_0xfcc, MASKLWORD);
+	fa_t->cnt_ofdm_txon = (u16)odm_get_bb_reg(dm, R_0xfc8, MASKHWORD);
+
 	ret_value = odm_get_bb_reg(dm, ODM_REG_OFDM_FA_TYPE1_11AC, MASKDWORD);
 	fa_t->cnt_fast_fsync = (ret_value & 0xffff0000) >> 16;
 
@@ -1770,22 +1911,12 @@ void phydm_fa_cnt_statistics_ac(void *dm_void)
 }
 #endif
 
-void phydm_get_dbg_port_info(void *dm_void)
+u32 phydm_get_edcca_report(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	struct phydm_fa_struct *fa_t = &dm->false_alm_cnt;
 	u32 dbg_port = dm->adaptivity.adaptivity_dbg_port;
 	u32 val = 0;
-
-	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
-		fa_t->dbg_port0 = odm_get_bb_reg(dm, R_0x2db4, MASKDWORD);
-	} else {
-		/*set debug port to 0x0*/
-		if (phydm_set_bb_dbg_port(dm, DBGPORT_PRI_1, 0x0)) {
-			fa_t->dbg_port0 = phydm_get_bb_dbg_port_val(dm);
-			phydm_release_bb_dbg_port(dm);
-		}
-	}
 
 	if (dm->support_ic_type & ODM_RTL8723D) {
 		val = odm_get_bb_reg(dm, R_0x9a0, BIT(29));
@@ -1799,7 +1930,25 @@ void phydm_get_dbg_port_info(void *dm_void)
 		phydm_release_bb_dbg_port(dm);
 	}
 
-	fa_t->edcca_flag = (boolean)val;
+	return val;
+}
+
+void phydm_get_dbg_port_info(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct phydm_fa_struct *fa_t = &dm->false_alm_cnt;
+
+	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
+		fa_t->dbg_port0 = odm_get_bb_reg(dm, R_0x2db4, MASKDWORD);
+	} else {
+		/*set debug port to 0x0*/
+		if (phydm_set_bb_dbg_port(dm, DBGPORT_PRI_1, 0x0)) {
+			fa_t->dbg_port0 = phydm_get_bb_dbg_port_val(dm);
+			phydm_release_bb_dbg_port(dm);
+		}
+	}
+
+	fa_t->edcca_flag = (boolean)phydm_get_edcca_report(dm);
 
 	PHYDM_DBG(dm, DBG_FA_CNT, "FA_Cnt: Dbg port 0x0 = 0x%x, EDCCA = %d\n",
 		  fa_t->dbg_port0, fa_t->edcca_flag);
@@ -1869,6 +2018,57 @@ void phydm_set_crc32_cnt2_rate(void *dm_void, u8 rate_idx)
 	}
 }
 
+void phydm_fa_cnt_cal_fa_duration(void *dm_void)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct ccx_info *ccx = &dm->dm_ccx_info;
+	struct phydm_fa_struct *fa_t = &dm->false_alm_cnt;
+	u8 norm = 0; /*normalization*/
+	boolean fahm_chk = false;
+
+	fa_t->time_fa_all = fa_t->cnt_fast_fsync * 12 +
+			    fa_t->cnt_sb_search_fail * 12 +
+			    fa_t->cnt_parity_fail * 28 +
+			    fa_t->cnt_rate_illegal * 28 +
+			    fa_t->cnt_crc8_fail * 20 +
+			    fa_t->cnt_crc8_fail_vhta * 28 +
+			    fa_t->cnt_mcs_fail_vht * 36 +
+			    fa_t->cnt_mcs_fail * 32 +
+			    fa_t->cnt_cck_fail * 80;
+
+	fa_t->time_fa_exp = fa_t->cnt_ofdm_fail * OFDM_FA_EXP_DURATION +
+			    fa_t->cnt_cck_fail * CCK_FA_EXP_DURATION;
+
+	fa_t->time_fa_ifs_clm = 0;
+	fa_t->time_fa_fahm = 0;
+
+	#ifdef IFS_CLM_SUPPORT
+	if (ccx->ccx_watchdog_result & IFS_CLM_SUCCESS) {
+		norm = (u8)PHYDM_DIV(PHYDM_WATCH_DOG_PERIOD * S_TO_US,
+				     ccx->ifs_clm_period);
+		fa_t->time_fa_ifs_clm = (ccx->ifs_clm_cckfa +
+					ccx->ifs_clm_ofdmfa) * norm;
+	}
+	#endif
+
+	#ifdef FAHM_SUPPORT
+	if (ccx->ccx_watchdog_result & FAHM_SUCCESS) {
+		if (fa_t->cnt_cck_fail) {
+			if (ccx->fahm_inclu_cck)
+				fahm_chk = true;
+		} else {
+			fahm_chk = true;
+		}
+	}
+
+	if (fahm_chk) {
+		norm = (u8)PHYDM_DIV(PHYDM_WATCH_DOG_PERIOD * S_TO_US,
+				     ccx->fahm_period);
+		fa_t->time_fa_fahm = ccx->fahm_result_sum * norm;
+	}
+	#endif
+}
+
 void phydm_false_alarm_counter_statistics(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
@@ -1898,15 +2098,7 @@ void phydm_false_alarm_counter_statistics(void *dm_void)
 	phydm_get_dbg_port_info(dm);
 	phydm_false_alarm_counter_reg_reset(dm_void);
 
-	fa_t->time_fa_all = fa_t->cnt_fast_fsync * 12 +
-			    fa_t->cnt_sb_search_fail * 12 +
-			    fa_t->cnt_parity_fail * 28 +
-			    fa_t->cnt_rate_illegal * 28 +
-			    fa_t->cnt_crc8_fail * 20 +
-			    fa_t->cnt_crc8_fail_vhta * 28 +
-			    fa_t->cnt_mcs_fail_vht * 36 +
-			    fa_t->cnt_mcs_fail * 32 +
-			    fa_t->cnt_cck_fail * 80;
+	phydm_fa_cnt_cal_fa_duration(dm);
 
 	fa_t->cnt_crc32_error_all = fa_t->cnt_vht_crc32_error +
 				    fa_t->cnt_ht_crc32_error +
@@ -1919,11 +2111,19 @@ void phydm_false_alarm_counter_statistics(void *dm_void)
 				 fa_t->cnt_cck_crc32_ok;
 
 	PHYDM_DBG(dm, DBG_FA_CNT,
+		  "[Tx cnt] {CCK_TxEN, CCK_TxON, OFDM_TxEN, OFDM_TxON} = {%d, %d, %d, %d}\n",
+		  fa_t->cnt_cck_txen, fa_t->cnt_cck_txon, fa_t->cnt_ofdm_txen,
+		  fa_t->cnt_ofdm_txon);
+	PHYDM_DBG(dm, DBG_FA_CNT,
 		  "[CCA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}\n",
 		  fa_t->cnt_cck_cca, fa_t->cnt_ofdm_cca, fa_t->cnt_cca_all);
 	PHYDM_DBG(dm, DBG_FA_CNT,
 		  "[FA Cnt] {CCK, OFDM, Total} = {%d, %d, %d}\n",
 		  fa_t->cnt_cck_fail, fa_t->cnt_ofdm_fail, fa_t->cnt_all);
+	PHYDM_DBG(dm, DBG_FA_CNT,
+		  "[FA duration(us)] {exp, ifs_clm, fahm} = {%d, %d, %d}\n",
+		  fa_t->time_fa_exp, fa_t->time_fa_ifs_clm,
+		  fa_t->time_fa_fahm);
 	PHYDM_DBG(dm, DBG_FA_CNT,
 		  "[OFDM FA] Parity=%d, Rate=%d, Fast_Fsync=%d, SBD=%d\n",
 		  fa_t->cnt_parity_fail, fa_t->cnt_rate_illegal,
@@ -2093,7 +2293,7 @@ void phydm_tdma_dig_timer_check(void *dm_void)
 			if (dm->support_ic_type & (ODM_RTL8198F | ODM_RTL8814B |
 			    ODM_RTL8812F | ODM_RTL8822B | ODM_RTL8192F |
 			    ODM_RTL8821C | ODM_RTL8197G | ODM_RTL8822C |
-			    ODM_RTL8723D)) {
+			    ODM_RTL8723D| ODM_RTL8723F)) {
 				PHYDM_DBG(dm, DBG_DIG,
 					  "Check fail, Restart timer\n\n");
 				phydm_false_alarm_counter_reset(dm);
@@ -3301,6 +3501,8 @@ void phydm_dig_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 		#endif
 		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "{6} {fw_dig_en}\n");
+		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "{7} FA source:{0:original/1:Experimental duration/2:IFS_CLM/3:FAHM}\n");
 	} else {
 		PHYDM_SSCANF(input[1], DCMD_DECIMAL, &var1[0]);
 
@@ -3310,9 +3512,9 @@ void phydm_dig_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 		if (var1[0] == 0) {
 			if (var1[1] == 1) {
 				dig_t->is_dbg_fa_th = true;
-				dig_t->fa_th[0] = (u16)var1[2];
-				dig_t->fa_th[1] = (u16)var1[3];
-				dig_t->fa_th[2] = (u16)var1[4];
+				dig_t->fa_th[0] = (u32)var1[2];
+				dig_t->fa_th[1] = (u32)var1[3];
+				dig_t->fa_th[2] = (u32)var1[4];
 
 				PDM_SNPF(out_len, used, output + used,
 					 out_len - used,
@@ -3370,6 +3572,10 @@ void phydm_dig_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 			phydm_fw_dm_ctrl_en(dm, F00_DIG, (boolean)var1[1]);
 			PDM_SNPF(out_len, used, output + used, out_len - used,
 				 "fw_dig_enable = %2x\n", dig_t->fw_dig_enable);
+		} else if (var1[0] == 7) {
+			dig_t->fa_source = (u8)var1[1];
+			PDM_SNPF(out_len, used, output + used, out_len - used,
+				 "FA source = %d\n", dig_t->fa_source);
 		}
 	}
 	*_used = used;
@@ -3377,7 +3583,7 @@ void phydm_dig_debug(void *dm_void, char input[][16], u32 *_used, char *output,
 }
 
 #ifdef CONFIG_MCC_DM
-#if (RTL8822B_SUPPORT || RTL8822C_SUPPORT)
+#if (RTL8822B_SUPPORT || RTL8822C_SUPPORT|| RTL8723F_SUPPORT)
 void phydm_mcc_igi_clr(void *dm_void, u8 clr_port)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;

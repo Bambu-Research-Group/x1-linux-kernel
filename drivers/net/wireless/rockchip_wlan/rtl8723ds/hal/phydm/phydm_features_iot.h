@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -115,10 +114,14 @@
 	#ifdef CONFIG_PHYDM_ANTENNA_DIVERSITY
 
 		#if (RTL8723B_SUPPORT || RTL8821A_SUPPORT ||\
-		     RTL8188F_SUPPORT || RTL8821C_SUPPORT)
+		     RTL8188F_SUPPORT || RTL8821C_SUPPORT || RTL8195B_SUPPORT)
 			#define	CONFIG_S0S1_SW_ANTENNA_DIVERSITY
 		#endif
-
+		
+		#if (RTL8710C_SUPPORT)
+			//#define	CONFIG_S0S1_SW_ANTENNA_DIVERSITY
+		#endif
+		
 		#if (RTL8821A_SUPPORT)
 			/*#define CONFIG_HL_SMART_ANTENNA_TYPE1*/
 		#endif
@@ -151,7 +154,9 @@
 /*#define	CONFIG_PATH_DIVERSITY*/
 /*#define	CONFIG_RA_DYNAMIC_RTY_LIMIT*/
 //#define	CONFIG_BB_TXBF_API
+#if DBG
 #define	CONFIG_PHYDM_DEBUG_FUNCTION
+#endif
 
 #ifdef CONFIG_BT_COEXIST
 	#define	ODM_CONFIG_BT_COEXIST

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,8 +26,8 @@
 #ifndef __PHYDM_PMAC_TX_SETTING_H__
 #define __PHYDM_PMAC_TX_SETTING_H__
 
-/*2019.08.02 Modify pmac_tx echo cmd to prevent from hang*/
-#define PMAC_TX_SETTING_VERSION "2.0"
+/*2020.03.16 Fix TxInfo content in B mode*/
+#define PMAC_TX_SETTING_VERSION "2.1"
 
 /* 1 ============================================================
  * 1  Definition
@@ -50,10 +49,12 @@ struct phydm_pmac_info {
 	u8 m_stbc; /* bSTBC + 1 for WIN/CE, bSTBC for others*/
 	u16 packet_period;
 	u32 packet_count;
+	u32 packet_length;
 	u8 packet_pattern;
 	u16 sfd;
 	u8 signal_field;
 	u8 service_field;
+	u8 service_field_bit2:1;
 	u16 length;
 	u8 crc16[2];
 	u8 lsig[3];

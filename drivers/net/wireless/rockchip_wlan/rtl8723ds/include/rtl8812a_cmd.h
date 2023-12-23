@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -117,12 +116,6 @@ void rtl8812_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 
 #ifdef CONFIG_FWLPS_IN_IPS
 void rtl8812_set_FwPwrModeInIPS_cmd(PADAPTER padapter, u8 cmd_param);
-#endif
-
-#ifdef CONFIG_TDLS
-#ifdef CONFIG_TDLS_CH_SW
-void rtl8812_set_BcnEarly_C2H_Rpt_cmd(PADAPTER padapter, u8 enable);
-#endif
 #endif
 
 /* ------------------------------------

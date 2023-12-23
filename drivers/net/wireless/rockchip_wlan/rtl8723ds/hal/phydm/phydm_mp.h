@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,8 +26,8 @@
 #ifndef __PHYDM_MP_H__
 #define __PHYDM_MP_H__
 
-/*2019.07.31 Refine code Structure */
-#define MP_VERSION "1.4"
+/*2020.04.27 Refine single tone Tx flow*/
+#define MP_VERSION "1.5"
 
 /* @1 ============================================================
  * 1  Definition
@@ -46,6 +45,11 @@ struct phydm_mp {
 	u64 rx_phy_crc_err_cnt;
 	/*The Value of IO operation is depend of MptActType.*/
 	u32 io_value;
+	u32 rf0[RF_PATH_MEM_SIZE];
+	#if (RTL8814B_SUPPORT)
+	u32 rf0_syn[2];
+	#endif
+	u32 rf1[RF_PATH_MEM_SIZE];
 };
 
 /* @1 ============================================================

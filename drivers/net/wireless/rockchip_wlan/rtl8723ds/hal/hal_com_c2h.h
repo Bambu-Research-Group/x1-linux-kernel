@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -137,5 +136,7 @@ int c2h_lps_status_rpt(PADAPTER adapter, u8 *data, u8 len);
 void c2h_txpwr_idx_offload_done(_adapter *adapter, u8 *data, u8 len);
 int c2h_txpwr_idx_offload_wait(_adapter *adapter);
 #endif
+
+void rtw_hal_bcn_early_rpt_c2h_handler(_adapter *adapter);
 
 #endif /* __COMMON_C2H_H__ */

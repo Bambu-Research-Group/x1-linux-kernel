@@ -153,30 +153,11 @@ enum rockchip_spi_cmd_type {
 static struct delayed_work	esd_check_dw;
 static struct work_struct reset_work;
 static u32 mipi_err_cnt = 0;
+static u32 esd_power_value = 0, esd_power_cmd = 0;
 
 struct panel_simple *gPanel;
 
-static u32 get_panel_id(void) {
-	struct device_node *node;
-	const char *model_name;
-
-	node = of_find_node_by_path("/");
-	of_property_read_string(node, "model", &model_name);
-	of_node_put(node);
-
-	if (strstr(model_name, "panel_a")) {
-		return 0;
-	} else if (strstr(model_name, "panel_b")) {
-		return 1;
-	} else if (strstr(model_name, "P002")) {
-		return 2;
-	} else {
-		pr_err("do not know panel is, return default id 0");
-		return 0;
-	}
-}
-
-static bool esd_check_value_read(u8* value)
+static bool esd_check_value_read(u32 cmd, u8* value)
 {
 	ssize_t err;
 	bool ret = false;
@@ -184,11 +165,7 @@ static bool esd_check_value_read(u8* value)
 	/*u8 addr = MIPI_LCD_ESD_ERR_REBOOT;*/
 	gPanel->dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
 
-	if (get_panel_id() == 0) {
-		err = mipi_dsi_dcs_get_power_mode(gPanel->dsi, value);
-	} else {
-		err = mipi_dsi_dcs_read(gPanel->dsi, 0x9, value, 1);
-	}
+	err = mipi_dsi_dcs_read(gPanel->dsi, cmd, value, 1);
 
 	gPanel->dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 
@@ -219,23 +196,12 @@ static void esd_mipi_reset(struct work_struct *work)
 
 static void esd_check_handler(struct work_struct *work)
 {
+	bool ret = false;
 	u8 value = 0;
 	static int count = 0;
-	u8 target_value = 0;
-	bool ret = false;
 
-	u32 panel_id = get_panel_id();
-	if (panel_id == 0) {
-		target_value = 0x1c;
-	} else if(panel_id == 1) {
-		target_value = 0x80;
-	}else if(panel_id == 2){
-		schedule_delayed_work(&esd_check_dw, msecs_to_jiffies(1000));
-		return ;
-	}
-
-	ret = esd_check_value_read(&value);
-	if (ret && (value != target_value)) {
+	ret = esd_check_value_read(esd_power_cmd, &value);
+	if (ret && (value != esd_power_value)) {
 		if (count == 3) {
 			count = 0;
 			schedule_work(&reset_work);
@@ -712,8 +678,11 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 #if MIPI_LCD_ESD_ERR_REBOOT
 	mipi_dsi_dcs_get_power_mode(p->dsi,&cmd);
-	printk("cmd = 0x%x\n",cmd);
-	schedule_delayed_work(&esd_check_dw, msecs_to_jiffies(2000));
+	printk("esd cmd = 0x%x\n",cmd);
+	if ((esd_power_value != 0) || (esd_power_cmd != 0)) {
+		printk("enable esd check\n");
+		schedule_delayed_work(&esd_check_dw, msecs_to_jiffies(2000));
+	}
 #endif
 
 	p->prepared = true;
@@ -802,6 +771,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	struct panel_simple *panel;
 	const char *cmd_type;
 	int err;
+#if MIPI_LCD_ESD_ERR_REBOOT
+	struct device_node *panel_node;
+#endif
+
+	pr_err("probe esd_check");
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
@@ -926,9 +900,42 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 #if MIPI_LCD_ESD_ERR_REBOOT
 	gPanel = panel;
+	panel_node = NULL;
+	if(!panel_node){
+		while ((panel_node = of_find_compatible_node(panel_node, NULL, "simple-panel-dsi")) != NULL){
+			int ret;
+			const char *status = NULL;
+			if((ret = of_property_read_string(panel_node, "status", &status)) != 0){
+				pr_err("esd_check read %s status err: %d", panel_node->full_name, ret);
+				continue;
+			}
+			if(strcmp(status, "okay") != 0){
+				continue;
+			}
+			if((ret = of_property_read_u32(panel_node, "esd_power_value", &esd_power_value)) != 0){
+				pr_err("esd_check read %s esd_power_value err: %d", panel_node->full_name, ret);
+				continue;
+			}
+			if((ret = of_property_read_u32(panel_node, "esd_power_cmd", &esd_power_cmd)) != 0){
+				pr_err("esd_check read %s esd_power_cmd err: %d", panel_node->full_name, ret);
+				continue;
+			}
+			pr_info("esd_check find match panel: %s, esd_power_value: %d, esd_power_cmd: %d",
+					panel_node->full_name, esd_power_value, esd_power_cmd);
+			break;
+		}
+		if(panel_node == NULL){
+			pr_err("esd_check cannot find okay panel");
+		}
+	}
+
 	INIT_DELAYED_WORK(&esd_check_dw, esd_check_handler);
 	INIT_WORK(&reset_work, esd_mipi_reset);
-	schedule_delayed_work(&esd_check_dw, msecs_to_jiffies(1000));
+
+	if ((esd_power_value != 0) || (esd_power_cmd != 0)) {
+		printk("enable esd check\n");
+		schedule_delayed_work(&esd_check_dw, msecs_to_jiffies(1000));
+	}
 #endif
 
 	return 0;

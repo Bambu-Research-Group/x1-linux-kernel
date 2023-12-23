@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -249,7 +248,7 @@ int rtw_bss_is_candidate_mesh_peer(_adapter *adapter, WLAN_BSSID_EX *target, u8 
 		rsn_ie = rtw_get_wpa2_ie(BSS_EX_TLV_IES(target), &rsn_ie_len, BSS_EX_TLV_IES_LEN(target));
 		if (!rsn_ie || rsn_ie_len == 0)
 			goto exit;
-		if (rtw_parse_wpa2_ie(rsn_ie, rsn_ie_len + 2, &group_cipher, &pairwise_cipher, &gmcs, NULL, &mfp_opt) != _SUCCESS)
+		if (rtw_parse_wpa2_ie(rsn_ie, rsn_ie_len + 2, &group_cipher, &pairwise_cipher, &gmcs, NULL, &mfp_opt, NULL) != _SUCCESS)
 			goto exit;
 		if ((sec->mfp_opt == MFP_REQUIRED && mfp_opt < MFP_OPTIONAL)
 			|| (mfp_opt == MFP_REQUIRED && sec->mfp_opt < MFP_OPTIONAL))
@@ -1040,7 +1039,7 @@ u8 rtw_mesh_select_operating_ch(_adapter *adapter)
 			int ch_set_idx = rtw_chset_search_ch(rfctl->channel_set, scanned->network.Configuration.DSConfig);
 
 			if (ch_set_idx >= 0
-				&& rfctl->channel_set[ch_set_idx].ScanType != SCAN_PASSIVE
+				&& !(rfctl->channel_set[ch_set_idx].flags & RTW_CHF_NO_IR)
 				&& !CH_IS_NON_OCP(&rfctl->channel_set[ch_set_idx])
 			) {
 				u8 nop, accept;
@@ -1172,7 +1171,7 @@ void dump_mesh_networks(void *sel, _adapter *adapter)
 				rsn_ie = rtw_get_wpa2_ie(BSS_EX_TLV_IES(&network->network)
 							, &rsn_ie_len, BSS_EX_TLV_IES_LEN(&network->network));
 				if (rsn_ie && rsn_ie_len)
-					rtw_parse_wpa2_ie(rsn_ie, rsn_ie_len + 2, &gcs, &pcs, &gmcs, NULL, &mfp_opt);
+					rtw_parse_wpa2_ie(rsn_ie, rsn_ie_len + 2, &gcs, &pcs, &gmcs, NULL, &mfp_opt, NULL);
 			}
 			RTW_PRINT_SEL(sel, "* "MAC_FMT" %3d            %-32s %2x%2x%2x%2x%2x"
 				" %03x %03x %c%03x"
@@ -1214,7 +1213,7 @@ void dump_mesh_networks(void *sel, _adapter *adapter)
 		if (auth_pid && auth_pid <= 2) {
 			rsn_ie = rtw_get_wpa2_ie(BSS_EX_TLV_IES(&network->network), &rsn_ie_len, BSS_EX_TLV_IES_LEN(&network->network));
 			if (rsn_ie && rsn_ie_len)
-				rtw_parse_wpa2_ie(rsn_ie, rsn_ie_len + 2, &gcs, &pcs, &gmcs, NULL, &mfp_opt);
+				rtw_parse_wpa2_ie(rsn_ie, rsn_ie_len + 2, &gcs, &pcs, &gmcs, NULL, &mfp_opt, NULL);
 		}
 		age_ms = rtw_get_passing_time_ms(network->last_scanned);
 		#if CONFIG_RTW_MESH_ACNODE_PREVENT
@@ -3870,7 +3869,7 @@ int rtw_mesh_rx_data_validate_hdr(_adapter *adapter, union recv_frame *rframe, s
 		goto exit;
 
 	switch (rattrib->to_fr_ds) {
-	case 1:
+	case 2:
 		if (!IS_MCAST(GetAddr1Ptr(whdr)))
 			goto exit;
 		*sta = rtw_get_stainfo(stapriv, get_addr2_ptr(whdr));
@@ -3958,7 +3957,7 @@ int rtw_mesh_rx_data_validate_mctrl(_adapter *adapter, union recv_frame *rframe
 	ae = mctrl->flags & MESH_FLAGS_AE;
 	mlen = ae_to_mesh_ctrl_len[ae];
 	switch (rattrib->to_fr_ds) {
-	case 1:
+	case 2:
 		*da = mda;
 		if (ae == MESH_FLAGS_AE_A4)
 			*sa = mctrl->eaddr1;

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -808,4 +807,79 @@ void dbg_rtw_sdio_free_xmitbuf_sema_down(struct xmit_priv *xmit, const char *cal
 
 #endif /* SDIO_FREE_XMIT_BUF_SEMA */
 #endif /* !CONFIG_SDIO_TX_TASKLET */
+
+s32 sdio_initrecvbuf(struct recv_buf *recvbuf, _adapter *adapter)
+{
+	_rtw_init_listhead(&recvbuf->list);
+#ifdef PLATFORM_WINDOWS
+	_rtw_spinlock_init(&recvbuf->recvbuf_lock);
+#endif
+	recvbuf->adapter = adapter;
+
+	return _SUCCESS;
+}
+
+void sdio_freerecvbuf(struct recv_buf *recvbuf)
+{
+#ifdef PLATFORM_WINDOWS
+	_rtw_spinlock_free(&recvbuf->recvbuf_lock);
+#endif
+}
+
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT
+void dump_recvbuf_pwait_conf(void *sel, struct recv_priv *recvpriv)
+{
+	struct rtw_pwait_conf *conf = &recvpriv->recvbuf_pwait.conf;
+
+	RTW_PRINT_SEL(sel, "%-4s %-10s %-10s\n"
+		, "type", "time", "cnt_lmt");
+	RTW_PRINT_SEL(sel, "%4s %10d %10d\n"
+		, rtw_pwait_type_str(conf->type), conf->wait_time, conf->wait_cnt_lmt);
+}
+
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST
+int recvbuf_pwait_config_req(struct recv_priv *recvpriv, enum rtw_pwait_type type, s32 time, s32 cnt_lmt)
+{
+	struct recv_buf *rbuf;
+	struct rtw_pwait_conf *conf;
+	int ret = _FAIL;
+
+	rbuf = rtw_malloc(sizeof(*rbuf) + sizeof(struct rtw_pwait_conf));
+	if (!rbuf)
+		goto exit;
+
+	sdio_initrecvbuf(rbuf, recvpriv->adapter);
+	rbuf->type = RBUF_TYPE_PWAIT_ADJ;
+	rbuf->pbuf = ((u8*)rbuf) + sizeof(*rbuf);
+	conf = (struct rtw_pwait_conf *)rbuf->pbuf;
+	conf->type = type;
+	conf->wait_time = time;
+	conf->wait_cnt_lmt = cnt_lmt;
+
+	ret = rtw_enqueue_recvbuf(rbuf, &recvpriv->free_recv_buf_queue);
+	if (0 && ret == _SUCCESS) {
+		RTW_INFO("request recvbuf_pwait with type=%s time=%d cnt_lmt=%d\n"
+			, rtw_pwait_type_str(type), time, cnt_lmt);
+	}
+
+exit:
+	return ret;
+}
+
+int recvbuf_pwait_config_hdl(struct recv_priv *recvpriv, struct recv_buf *rbuf)
+{
+	struct rtw_pwait_conf *conf = (struct rtw_pwait_conf *)rbuf->pbuf;
+	int ret = rtw_pwctx_config(&recvpriv->recvbuf_pwait, conf->type, conf->wait_time, conf->wait_cnt_lmt);
+
+	if (0 && ret == _SUCCESS) {
+		RTW_INFO("config recvbuf_pwait with type=%s time=%d cnt_lmt=%d\n"
+			, rtw_pwait_type_str(conf->type), conf->wait_time, conf->wait_cnt_lmt);
+	}
+	sdio_freerecvbuf(rbuf);
+	rtw_mfree(rbuf, sizeof(*rbuf) + sizeof(*conf));
+
+	return ret;
+}
+#endif /* CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST */
+#endif /* CONFIG_SDIO_RECVBUF_PWAIT */
 

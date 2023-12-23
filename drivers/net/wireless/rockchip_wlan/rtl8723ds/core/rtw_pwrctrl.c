@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -233,7 +232,7 @@ bool rtw_pwr_unassociated_idle(_adapter *adapter)
 				|| MLME_IS_AP(iface)
 				|| MLME_IS_MESH(iface)
 				|| check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE)
-				#if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211)
+				#if defined(CONFIG_IOCTL_CFG80211)
 				|| rtw_cfg80211_get_is_roch(iface) == _TRUE
 				|| (rtw_cfg80211_is_ro_ch_once(adapter)
 					&& rtw_cfg80211_get_last_ro_ch_passing_ms(adapter) < 3000)
@@ -666,7 +665,7 @@ u8 PS_RDY_CHECK(_adapter *padapter)
 		|| MLME_IS_MESH(padapter)
 		|| MLME_IS_MONITOR(padapter)
 		|| check_fwstate(pmlmepriv, WIFI_ADHOC_MASTER_STATE | WIFI_ADHOC_STATE)
-		#if defined(CONFIG_P2P) && defined(CONFIG_IOCTL_CFG80211)
+		#if defined(CONFIG_IOCTL_CFG80211)
 		|| rtw_cfg80211_get_is_roch(padapter) == _TRUE
 		#endif
 		|| rtw_is_scan_deny(padapter)
@@ -1622,7 +1621,8 @@ static void dma_event_callback(struct work_struct *work)
 #ifdef CONFIG_LPS_RPWM_TIMER
 
 #define DBG_CPWM_CHK_FAIL
-#if defined(DBG_CPWM_CHK_FAIL) && (defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C)) 
+#if defined(DBG_CPWM_CHK_FAIL) && (defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C) \
+				   || defined(CONFIG_RTL8723F))
 #define CPU_EXCEPTION_CODE 0xFAFAFAFA
 static void rtw_cpwm_chk_fail_debug(_adapter *padapter)
 {
@@ -1691,7 +1691,8 @@ static void rpwmtimeout_workitem_callback(struct work_struct *work)
 	pwrpriv->rpwm_retry = 0;
 	_exit_pwrlock(&pwrpriv->lock);
 
-#if defined(DBG_CPWM_CHK_FAIL) && (defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C))
+#if defined(DBG_CPWM_CHK_FAIL) && (defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C) \
+				   || defined(CONFIG_RTL8723F))
 	RTW_INFO("+%s: rpwm=0x%02X cpwm=0x%02X\n", __func__, pwrpriv->rpwm, pwrpriv->cpwm);
 	rtw_cpwm_chk_fail_debug(padapter);
 #endif
@@ -2366,7 +2367,17 @@ void rtw_init_pwrctrl_priv(PADAPTER padapter)
 #ifdef CONFIG_WOW_PATTERN_HW_CAM
 	_rtw_mutex_init(&pwrctrlpriv->wowlan_pattern_cam_mutex);
 #endif
+
+#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+	pwrctrlpriv->wowlan_keep_alive_ack_index = 0xFF;
+	pwrctrlpriv->wowlan_wake_pattern_index = 0xFF;
+#endif/*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
 	pwrctrlpriv->wowlan_aoac_rpt_loc = 0;
+#ifdef CONFIG_WAR_OFFLOAD
+#if defined(CONFIG_OFFLOAD_MDNS_V4) || defined(CONFIG_OFFLOAD_MDNS_V6)
+	rtw_wow_war_mdns_parms_reset(padapter, _TRUE);
+#endif /* defined(CONFIG_OFFLOAD_MDNS_V4) || defined(CONFIG_OFFLOAD_MDNS_V6) */
+#endif /* CONFIG_WAR_OFFLOAD */
 #endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_LPS_POFF

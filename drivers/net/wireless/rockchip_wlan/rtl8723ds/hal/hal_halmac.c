@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2015 - 2019 Realtek Corporation.
@@ -1219,6 +1218,7 @@ int rtw_halmac_init_adapter(struct dvobj_priv *d, struct halmac_platform_api *pf
 	struct halmac_adapter *halmac;
 	struct halmac_api *api;
 	enum halmac_interface intf;
+	enum halmac_intf_phy_platform pltfm = HALMAC_INTF_PHY_PLATFORM_ALL;
 	enum halmac_ret_status status;
 	int err = 0;
 #ifdef CONFIG_SDIO_HCI
@@ -1264,9 +1264,13 @@ int rtw_halmac_init_adapter(struct dvobj_priv *d, struct halmac_platform_api *pf
 		goto deinit;
 	}
 
-	status = api->halmac_phy_cfg(halmac, HALMAC_INTF_PHY_PLATFORM_ALL);
+#ifdef CONFIG_PLATFORM_RTK1319
+	pltfm = HALMAC_INTF_PHY_PLATFORM_DHC;
+#endif /* CONFIG_PLATFORM_RTK1319 */
+	status = api->halmac_phy_cfg(halmac, pltfm);
 	if (status != HALMAC_RET_SUCCESS) {
-		RTW_ERR("%s: halmac_phy_cfg fail!(status=%d)\n", __FUNCTION__, status);
+		RTW_ERR("%s: halmac_phy_cfg fail! (platform=%d, status=%d)\n",
+			__FUNCTION__, pltfm, status);
 		err = -1;
 		goto deinit;
 	}
@@ -3104,7 +3108,7 @@ static int _send_general_info(struct dvobj_priv *d)
 	case HALMAC_RET_NO_DLFW:
 		RTW_WARN("%s: halmac_send_general_info() fail because fw not dl!\n",
 			 __FUNCTION__);
-		/* go through */
+		/* fall through */
 	default:
 		return -1;
 	}
@@ -5160,6 +5164,35 @@ void rtw_halmac_led_switch(struct dvobj_priv *d, u8 on)
 	api->halmac_pinmux_wl_led_sw_ctrl(halmac, on);
 }
 
+static int _gpio_cfg(struct dvobj_priv *d, enum halmac_gpio_func gpio, u8 enable)
+{
+	struct halmac_adapter *halmac;
+	struct halmac_api *api;
+	enum halmac_ret_status status;
+
+
+	halmac = dvobj_to_halmac(d);
+	api = HALMAC_GET_API(halmac);
+
+	if (enable) {
+		status = api->halmac_pinmux_set_func(halmac, gpio);
+		if (status != HALMAC_RET_SUCCESS) {
+			RTW_ERR("%s: pinmux set GPIO(%d) fail!(0x%x)\n",
+				__FUNCTION__, gpio, status);
+			return -1;
+		}
+	} else {
+ 		status = api->halmac_pinmux_free_func(halmac, gpio);
+		if (status != HALMAC_RET_SUCCESS) {
+			RTW_ERR("%s: pinmux free GPIO(%d) fail!(0x%x)\n",
+				__FUNCTION__, gpio, status);
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * rtw_halmac_bt_wake_cfg() - Configure BT wake host function
  * @d:		struct dvobj_priv*
@@ -5173,33 +5206,58 @@ void rtw_halmac_led_switch(struct dvobj_priv *d, u8 on)
  */
 int rtw_halmac_bt_wake_cfg(struct dvobj_priv *d, u8 enable)
 {
-	struct halmac_adapter *halmac;
-	struct halmac_api *api;
-	enum halmac_ret_status status;
+	return _gpio_cfg(d, HALMAC_GPIO_FUNC_BT_HOST_WAKE1, enable);
+}
+
+static enum halmac_gpio_func _gpio_to_func_for_rfe_ctrl(u8 gpio)
+{
+	enum halmac_gpio_func f = HALMAC_GPIO_FUNC_UNDEFINE;
 
 
-	halmac = dvobj_to_halmac(d);
-	api = HALMAC_GET_API(halmac);
-
-	if (enable) {
-		status = api->halmac_pinmux_set_func(halmac,
-						HALMAC_GPIO_FUNC_BT_HOST_WAKE1);
-		if (status != HALMAC_RET_SUCCESS) {
-			RTW_ERR("%s: pinmux set BT_HOST_WAKE1 fail!(0x%x)\n",
-				__FUNCTION__, status);
-			return -1;
-		}
-	} else {
-		status = api->halmac_pinmux_free_func(halmac,
-						HALMAC_GPIO_FUNC_BT_HOST_WAKE1);
-		if (status != HALMAC_RET_SUCCESS) {
-			RTW_ERR("%s: pinmux free BT_HOST_WAKE1 fail!(0x%x)\n",
-				__FUNCTION__, status);
-			return -1;
-		}
+#ifdef CONFIG_RTL8822C
+	switch (gpio) {
+	case 1:
+		f = HALMAC_GPIO_FUNC_ANTSWB;
+		break;
+	case 2:
+		f = HALMAC_GPIO_FUNC_S1_TRSW;
+		break;
+	case 3:
+		f = HALMAC_GPIO_FUNC_S0_TRSW;
+		break;
+	case 6:
+		f = HALMAC_GPIO_FUNC_S0_PAPE;
+		break;
+	case 7:
+		f = HALMAC_GPIO_FUNC_S0_TRSWB;
+		break;
+	case 13:
+		f = HALMAC_GPIO_FUNC_ANTSW;
+		break;
 	}
+#endif /* CONFIG_RTL8822C */
 
-	return 0;
+	return f;
+}
+
+/**
+ * rtw_halmac_rfe_ctrl_cfg() - Configure RFE control GPIO
+ * @d:		struct dvobj_priv*
+ * @gpio:	gpio number
+ *
+ * Configure pinmux to enable RFE control GPIO.
+ *
+ * Return 0 for OK, otherwise fail.
+ */
+int rtw_halmac_rfe_ctrl_cfg(struct dvobj_priv *d, u8 gpio)
+{
+	enum halmac_gpio_func f;
+
+
+	f = _gpio_to_func_for_rfe_ctrl(gpio);
+	if (f == HALMAC_GPIO_FUNC_UNDEFINE)
+		return -1;
+	return _gpio_cfg(d, f, 1);
 }
 
 #ifdef CONFIG_PNO_SUPPORT

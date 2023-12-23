@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -740,7 +739,7 @@ u8 *rtw_tdls_set_rsnie(struct tdls_txmgmt *ptxmgmt, u8 *pframe, struct pkt_attri
 
 u8 *rtw_tdls_set_ext_cap(u8 *pframe, struct pkt_attrib *pattrib)
 {
-	return rtw_set_ie(pframe, _EXT_CAP_IE_ , sizeof(TDLS_EXT_CAPIE), TDLS_EXT_CAPIE, &(pattrib->pktlen));
+	return rtw_set_ie(pframe, WLAN_EID_EXT_CAP , sizeof(TDLS_EXT_CAPIE), TDLS_EXT_CAPIE, &(pattrib->pktlen));
 }
 
 u8 *rtw_tdls_set_qos_cap(u8 *pframe, struct pkt_attrib *pattrib)
@@ -931,6 +930,7 @@ u8 *rtw_tdls_set_ch_sw(u8 *pframe, struct pkt_attrib *pattrib, struct sta_info *
 void rtw_tdls_set_ch_sw_oper_control(_adapter *padapter, u8 enable)
 {
 	HAL_DATA_TYPE *pHalData = GET_HAL_DATA(padapter);
+	u8 bcn_early_case;
 
 	if (enable == _TRUE) {
 #ifdef CONFIG_TDLS_CH_SW_V2
@@ -940,14 +940,18 @@ void rtw_tdls_set_ch_sw_oper_control(_adapter *padapter, u8 enable)
 #ifdef CONFIG_TDLS_CH_SW_BY_DRV
 		pHalData->ch_switch_offload = _FALSE;
 #endif
+		bcn_early_case = TDLS_BCN_ERLY_ON;
 	}
-	else
+	else {
 		pHalData->ch_switch_offload = _FALSE;
-	
+		bcn_early_case = TDLS_BCN_ERLY_OFF;
+	}
+
 	if (ATOMIC_READ(&padapter->tdlsinfo.chsw_info.chsw_on) != enable)
 		ATOMIC_SET(&padapter->tdlsinfo.chsw_info.chsw_on, enable);
 
-	rtw_hal_set_hwreg(padapter, HW_VAR_TDLS_BCN_EARLY_C2H_RPT, &enable);
+	rtw_hal_set_hwreg(padapter, HW_VAR_BCN_EARLY_C2H_RPT, &enable);
+	rtw_hal_set_hwreg(padapter, HW_VAR_SET_DRV_ERLY_INT, &bcn_early_case);
 	RTW_INFO("[TDLS] %s Bcn Early C2H Report\n", (enable == _TRUE) ? "Start" : "Stop");
 }
 
@@ -963,6 +967,7 @@ void rtw_tdls_ch_sw_back_to_base_chnl(_adapter *padapter)
 		rtw_tdls_cmd(padapter, pchsw_info->addr, TDLS_CH_SW_TO_BASE_CHNL_UNSOLICITED);
 }
 
+#ifndef CONFIG_TDLS_CH_SW_V2
 static void rtw_tdls_chsw_oper_init(_adapter *padapter, u32 timeout_ms)
 {
 	struct submit_ctx	*chsw_sctx = &padapter->tdlsinfo.chsw_info.chsw_sctx;
@@ -983,6 +988,7 @@ void rtw_tdls_chsw_oper_done(_adapter *padapter)
 
 	rtw_sctx_done(&chsw_sctx);
 }
+#endif
 
 s32 rtw_tdls_do_ch_sw(_adapter *padapter, struct sta_info *ptdls_sta, u8 chnl_type, u8 channel, u8 channel_offset, u16 bwmode, u16 ch_switch_time)
 {
@@ -1912,13 +1918,15 @@ sint On_TDLS_Setup_Req(_adapter *padapter, union recv_frame *precv_frame, struct
 
 			switch (pIE->ElementID) {
 			case _SUPPORTEDRATES_IE_:
-				_rtw_memcpy(supportRate, pIE->data, pIE->Length);
-				supportRateNum = pIE->Length;
+				if (pIE->Length <= sizeof(supportRate)) {
+					_rtw_memcpy(supportRate, pIE->data, pIE->Length);
+					supportRateNum = pIE->Length;
+				}
 				break;
 			case _COUNTRY_IE_:
 				break;
 			case _EXT_SUPPORTEDRATES_IE_:
-				if (supportRateNum < sizeof(supportRate)) {
+				if ((supportRateNum + pIE->Length) <= sizeof(supportRate)) {
 					_rtw_memcpy(supportRate + supportRateNum, pIE->data, pIE->Length);
 					supportRateNum += pIE->Length;
 				}
@@ -1929,20 +1937,22 @@ sint On_TDLS_Setup_Req(_adapter *padapter, union recv_frame *precv_frame, struct
 				rsnie_included = 1;
 				if (prx_pkt_attrib->encrypt) {
 					prsnie = (u8 *)pIE;
-					/* Check CCMP pairwise_cipher presence. */
-					ppairwise_cipher = prsnie + 10;
-					_rtw_memcpy(ptdls_sta->TDLS_RSNIE, pIE->data, pIE->Length);
-					pairwise_count = *(u16 *)(ppairwise_cipher - 2);
-					for (k = 0; k < pairwise_count; k++) {
-						if (_rtw_memcmp(ppairwise_cipher + 4 * k, RSN_CIPHER_SUITE_CCMP, 4) == _TRUE)
-							ccmp_included = 1;
-					}
+					if (pIE->Length <= sizeof(ptdls_sta->TDLS_RSNIE)) {
+						/* Check CCMP pairwise_cipher presence. */
+						ppairwise_cipher = prsnie + 10;
+						_rtw_memcpy(ptdls_sta->TDLS_RSNIE, pIE->data, pIE->Length);
+						pairwise_count = *(u16 *)(ppairwise_cipher - 2);
+						for (k = 0; k < pairwise_count; k++) {
+							if (_rtw_memcmp(ppairwise_cipher + 4 * k, RSN_CIPHER_SUITE_CCMP, 4) == _TRUE)
+								ccmp_included = 1;
+						}
 
-					if (ccmp_included == 0)
-						txmgmt.status_code = _STATS_INVALID_RSNIE_;
+						if (ccmp_included == 0)
+							txmgmt.status_code = _STATS_INVALID_RSNIE_;
+					}
 				}
 				break;
-			case _EXT_CAP_IE_:
+			case WLAN_EID_EXT_CAP:
 				break;
 			case _VENDOR_SPECIFIC_IE_:
 				break;
@@ -2094,13 +2104,15 @@ int On_TDLS_Setup_Rsp(_adapter *padapter, union recv_frame *precv_frame, struct 
 
 		switch (pIE->ElementID) {
 		case _SUPPORTEDRATES_IE_:
-			_rtw_memcpy(supportRate, pIE->data, pIE->Length);
-			supportRateNum = pIE->Length;
+			if (pIE->Length <= sizeof(supportRate)) {
+				_rtw_memcpy(supportRate, pIE->data, pIE->Length);
+				supportRateNum = pIE->Length;
+			}
 			break;
 		case _COUNTRY_IE_:
 			break;
 		case _EXT_SUPPORTEDRATES_IE_:
-			if (supportRateNum < sizeof(supportRate)) {
+			if ((supportRateNum + pIE->Length) <= sizeof(supportRate)) {
 				_rtw_memcpy(supportRate + supportRateNum, pIE->data, pIE->Length);
 				supportRateNum += pIE->Length;
 			}
@@ -2116,7 +2128,7 @@ int On_TDLS_Setup_Rsp(_adapter *padapter, union recv_frame *precv_frame, struct 
 				if (_rtw_memcmp(ppairwise_cipher + 4 * k, RSN_CIPHER_SUITE_CCMP, 4) == _TRUE)
 					verify_ccmp = 1;
 			}
-		case _EXT_CAP_IE_:
+		case WLAN_EID_EXT_CAP:
 			break;
 		case _VENDOR_SPECIFIC_IE_:
 			if (_rtw_memcmp((u8 *)pIE + 2, WMM_INFO_OUI, 6) == _TRUE) {
@@ -2591,6 +2603,7 @@ sint On_TDLS_Ch_Switch_Req(_adapter *padapter, union recv_frame *precv_frame, st
 		j += (pIE->Length + 2);
 	}
 
+#ifndef CONFIG_TDLS_CH_SW_V2
 	rtw_hal_get_hwreg(padapter, HW_VAR_CH_SW_NEED_TO_TAKE_CARE_IQK_INFO, &take_care_iqk);
 	if (take_care_iqk == _TRUE) {
 		u8 central_chnl;
@@ -2605,6 +2618,7 @@ sint On_TDLS_Ch_Switch_Req(_adapter *padapter, union recv_frame *precv_frame, st
 			return _FAIL;
 		}
 	}
+#endif
 
 	/* cancel ch sw monitor timer for responder */
 	if (!(pchsw_info->ch_sw_state & TDLS_CH_SW_INITIATOR_STATE))

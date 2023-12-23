@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,8 +26,8 @@
 #ifndef __PHYDMDIG_H__
 #define __PHYDMDIG_H__
 
-/* 2019.09.25 modify T3 value in init flow*/
-#define DIG_VERSION "3.6"
+/* 2020.08.13 Add IFS-CLM/FAHM in dig fa source for more accurate fa info*/
+#define DIG_VERSION "3.9"
 
 #define	DIG_HW		0
 #define DIG_LIMIT_PERIOD 60 /*60 sec*/
@@ -81,6 +80,11 @@
 
 #define	RSSI_OFFSET_DIG_LPS		5
 #define DIG_RECORD_NUM			4
+
+/*==== [FA duration] =======================================*/
+/*[PHYDM-406]*/
+#define OFDM_FA_EXP_DURATION		12	/*us*/
+#define CCK_FA_EXP_DURATION		175	/*us*/
 
 /*@--------------------Enum-----------------------------------*/
 enum phydm_dig_mode {
@@ -163,11 +167,14 @@ struct phydm_dig_struct {
 	u8		dig_max_of_min;		/*@Absolutly max of min*/
 	u32		ant_div_rssi_max;
 	u8		*is_p2p_in_process;
-	u16		fa_th[3];
+	u32		fa_th[3];
+	u32		dm_dig_fa_th1;
+	u8		fa_source;
 #if (RTL8822B_SUPPORT || RTL8197F_SUPPORT || RTL8821C_SUPPORT ||\
 	RTL8198F_SUPPORT || RTL8192F_SUPPORT || RTL8195B_SUPPORT ||\
 	RTL8822C_SUPPORT || RTL8814B_SUPPORT || RTL8721D_SUPPORT ||\
-	RTL8710C_SUPPORT || RTL8812F_SUPPORT || RTL8197G_SUPPORT)
+	RTL8710C_SUPPORT || RTL8812F_SUPPORT || RTL8197G_SUPPORT ||\
+	RTL8723F_SUPPORT)
 	u8		rf_gain_idx;
 	u8		agc_table_idx;
 	u8		big_jump_lmt[16];
@@ -238,6 +245,9 @@ struct phydm_fa_struct {
 	u32		cnt_crc32_error_all;
 	u32		cnt_crc32_ok_all;
 	u32		time_fa_all;
+	u32		time_fa_exp; /*FA duration, [PHYDM-406]*/
+	u32		time_fa_ifs_clm; /*FA duration, [PHYDM-406]*/
+	u32		time_fa_fahm; /*FA duration, [PHYDM-406]*/
 	boolean		cck_block_enable;
 	boolean		ofdm_block_enable;
 	u32		dbg_port0;
@@ -254,7 +264,10 @@ struct phydm_fa_struct {
 	u32		cnt_vht2_crc32_error;
 	u32		cnt_vht2_crc32_ok;
 	u8		vht2_pcr;
-
+	u32		cnt_cck_txen;
+	u32		cnt_cck_txon;
+	u32		cnt_ofdm_txen;
+	u32		cnt_ofdm_txon;
 };
 
 #ifdef PHYDM_TDMA_DIG_SUPPORT
@@ -317,7 +330,13 @@ void phydm_dig_lps_32k(void *dm_void);
 
 void phydm_dig_by_rssi_lps(void *dm_void);
 
+void phydm_get_dig_coverage(void *dm_void, u8 *max, u8 *min);
+
+u8 phydm_get_igi_for_target_pin_scan(void *dm_void, u8 rssi);
+
 void phydm_false_alarm_counter_statistics(void *dm_void);
+
+u32 phydm_get_edcca_report(void * dm_void);
 
 #ifdef PHYDM_TDMA_DIG_SUPPORT
 void phydm_set_tdma_dig_timer(void *dm_void);

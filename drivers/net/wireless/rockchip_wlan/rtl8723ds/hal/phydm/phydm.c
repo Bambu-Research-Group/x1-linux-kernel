@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -136,6 +135,10 @@ void phydm_cck_new_agc_chk(struct dm_struct *dm)
 
 		/*@1: new agc  0: old agc*/
 	dm->cck_new_agc = (boolean)odm_get_bb_reg(dm, new_agc_addr, BIT(17));
+#endif
+#if (RTL8723F_SUPPORT)
+	if (dm->support_ic_type & (ODM_RTL8723F)) 
+		dm->cck_new_agc = true;
 #endif
 }
 
@@ -360,6 +363,11 @@ void phydm_iot_patch_id_update(void *dm_void, u32 iot_idx, boolean en)
 		PHYDM_DBG(dm, DBG_CMN, "[IOT] patch_id_021f0800 = %d\n",
 			  iot_table->patch_id_021f0800);
 		break;
+	case 0x011f0500:
+		iot_table->patch_id_011f0500 = en;
+		PHYDM_DBG(dm, DBG_CMN, "[IOT] patch_id_011f0500 = %d\n",
+			  iot_table->patch_id_011f0500);
+		break;
 	default:
 		pr_debug("[%s] warning!\n", __func__);
 		break;
@@ -578,6 +586,21 @@ void phydm_hw_setting(struct dm_struct *dm)
 		phydm_hwsetting_8197g(dm);
 #endif
 
+#if (RTL8723F_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8723F)
+		phydm_hwsetting_8723f(dm);
+#endif
+
+#if (RTL8821C_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8821C)
+		phydm_hwsetting_8821c(dm);
+#endif
+
+#if (RTL8812F_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8812F)
+		phydm_hwsetting_8812f(dm);
+#endif
+
 #ifdef PHYDM_CCK_RX_PATHDIV_SUPPORT
 	phydm_cck_rx_pathdiv_watchdog(dm);
 #endif
@@ -625,6 +648,12 @@ boolean phydm_chk_bb_rf_pkg_set_valid(struct dm_struct *dm)
 		valid = phydm_chk_pkg_set_valid_8814b(dm,
 						      RELEASE_VERSION_8814B,
 						      RF_RELEASE_VERSION_8814B);
+	#endif
+	#if (RTL8723F_SUPPORT)
+	} else if (dm->support_ic_type == ODM_RTL8723F) {
+		valid = phydm_chk_pkg_set_valid_8723f(dm,
+						      RELEASE_VERSION_8723F,
+							  RF_RELEASE_VERSION_8723F);
 	#endif
 	}
 
@@ -892,6 +921,22 @@ u64 phydm_supportability_init_win(
 		break;
 #endif
 
+#if (RTL8723F_SUPPORT)
+	case ODM_RTL8723F:
+		support_ability |=
+			ODM_BB_DIG |
+			ODM_BB_RA_MASK |
+			/* ODM_BB_DYNAMIC_TXPWR |*/
+			ODM_BB_FA_CNT |
+			ODM_BB_RSSI_MONITOR |
+			ODM_BB_CCK_PD |
+			/*ODM_BB_PWR_TRAIN |*/
+			ODM_BB_RATE_ADAPTIVE |
+			ODM_BB_ADAPTIVITY |
+			ODM_BB_CFO_TRACKING |
+			ODM_BB_ENV_MONITOR;
+		break;
+#endif
 	default:
 		support_ability |=
 			ODM_BB_DIG |
@@ -1123,7 +1168,7 @@ u64 phydm_supportability_init_ce(void *dm_void)
 		support_ability |=
 			ODM_BB_DIG |
 			ODM_BB_RA_MASK |
-			/*@ODM_BB_DYNAMIC_TXPWR	|*/
+			ODM_BB_DYNAMIC_TXPWR |
 			ODM_BB_FA_CNT |
 			ODM_BB_RSSI_MONITOR |
 			ODM_BB_CCK_PD |
@@ -1170,7 +1215,22 @@ u64 phydm_supportability_init_ce(void *dm_void)
 			/*ODM_BB_ENV_MONITOR;*/
 		break;
 #endif
-
+#if (RTL8723F_SUPPORT)
+	case ODM_RTL8723F:
+		support_ability |=
+			ODM_BB_DIG |
+			ODM_BB_RA_MASK |
+			ODM_BB_DYNAMIC_TXPWR	|
+			ODM_BB_FA_CNT |
+			ODM_BB_RSSI_MONITOR |
+			ODM_BB_CCK_PD |
+			ODM_BB_RATE_ADAPTIVE |
+			/* ODM_BB_PATH_DIV | */
+			ODM_BB_ADAPTIVITY |
+			ODM_BB_CFO_TRACKING |
+			ODM_BB_ENV_MONITOR;
+		break;
+#endif
 	default:
 		support_ability |=
 			ODM_BB_DIG |
@@ -1427,6 +1487,21 @@ u64 phydm_supportability_init_ap(
 		break;
 #endif
 
+#if (RTL8723F_SUPPORT)
+	case ODM_RTL8723F:
+		support_ability |=
+			ODM_BB_DIG |
+			ODM_BB_RA_MASK |
+			ODM_BB_FA_CNT |
+			ODM_BB_RSSI_MONITOR |
+			ODM_BB_CCK_PD |
+			/*ODM_BB_PWR_TRAIN |*/
+			ODM_BB_RATE_ADAPTIVE |
+			ODM_BB_ADAPTIVITY |
+			ODM_BB_CFO_TRACKING |
+			ODM_BB_ENV_MONITOR;
+		break;
+#endif
 	default:
 		support_ability |=
 			ODM_BB_DIG |
@@ -1500,8 +1575,8 @@ u64 phydm_supportability_init_iot(
 			/*ODM_BB_PWR_TRAIN |*/
 			ODM_BB_RATE_ADAPTIVE |
 			ODM_BB_ADAPTIVITY |
-			ODM_BB_CFO_TRACKING;
-			/*ODM_BB_ENV_MONITOR*/
+			ODM_BB_CFO_TRACKING |
+			ODM_BB_ENV_MONITOR;
 		break;
 #endif
 
@@ -1644,6 +1719,14 @@ void phydm_supportability_init(void *dm_void)
 		if (IS_FUNC_EN(dm->en_adap_soml))
 			support_ability |= ODM_BB_ADAPTIVE_SOML;
 
+		/*@[DYNAMIC_TXPWR and TSSI cannot coexist]*/
+		if(IS_FUNC_EN(&dm->en_tssi_mode) &&
+		    (dm->support_ic_type & ODM_RTL8822C))
+			support_ability &= ~ODM_BB_DYNAMIC_TXPWR;
+		/*@[DYNAMIC_TXPWR and TSSI cannot coexist]*/
+		if(IS_FUNC_EN(&dm->en_tssi_mode) &&
+		    (dm->support_ic_type & ODM_RTL8723F))
+			support_ability &= ~ODM_BB_DYNAMIC_TXPWR;
 	}
 	dm->support_ability = support_ability;
 	PHYDM_DBG(dm, ODM_COMP_INIT, "IC=0x%x, mp=%d, Supportability=0x%llx\n",
@@ -1660,6 +1743,41 @@ void phydm_rfe_init(void *dm_void)
 		phydm_rfe_8822b_init(dm);
 #endif
 }
+
+#ifdef CONFIG_DYNAMIC_TXCOLLISION_TH
+void phydm_tx_collsion_th_init(void *dm_void)
+{
+
+struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+#if (RTL8197G_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8197G)
+		phydm_tx_collsion_th_init_8197g(dm);
+#endif
+
+#if (RTL8812F_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8812F)
+		phydm_tx_collsion_th_init_8812f(dm);
+#endif
+
+}
+
+void phydm_tx_collsion_th_set(void *dm_void, u8 val_r2t, u8 val_t2r)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+
+#if (RTL8197G_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8197G)
+		phydm_tx_collsion_th_set_8197g(dm, val_r2t, val_t2r);
+#endif
+
+#if (RTL8812F_SUPPORT)
+	if (dm->support_ic_type & ODM_RTL8812F)
+		phydm_tx_collsion_th_set_8812f(dm, val_r2t, val_t2r);
+#endif
+	
+}
+#endif
 
 void phydm_dm_early_init(struct dm_struct *dm)
 {
@@ -1779,8 +1897,7 @@ void phydm_supportability_en(void *dm_void, char input[][16], u32 *_used,
 	u8 i;
 
 	for (i = 0; i < 5; i++) {
-		if (input[i + 1])
-			PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL, &dm_value[i]);
+		PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL, &dm_value[i]);
 	}
 
 	pre_support_ability = dm->support_ability;
@@ -2167,8 +2284,7 @@ void phydm_pause_func_console(void *dm_void, char input[][16], u32 *_used,
 	}
 
 	for (i = 0; i < 10; i++) {
-		if (input[i + 1])
-			PHYDM_SSCANF(input[i + 1], DCMD_HEX, &var1[i]);
+		PHYDM_SSCANF(input[i + 1], DCMD_HEX, &var1[i]);
 	}
 
 	func = (enum phydm_func_idx)var1[0];
@@ -2284,6 +2400,8 @@ void phydm_watchdog(struct dm_struct *dm)
 
 	phydm_hw_setting(dm);
 
+	phydm_env_mntr_result_watchdog(dm);
+
 #ifdef PHYDM_TDMA_DIG_SUPPORT
 	if (dm->original_dig_restore == 0) {
 		phydm_tdma_dig_timer_check(dm);
@@ -2291,7 +2409,11 @@ void phydm_watchdog(struct dm_struct *dm)
 #endif
 	{
 		phydm_false_alarm_counter_statistics(dm);
-		phydm_noisy_detection(dm);
+	#if (ODM_IC_11N_SERIES_SUPPORT || ODM_IC_11AC_SERIES_SUPPORT)
+		if (dm->support_ic_type & (ODM_IC_11N_SERIES |
+					   ODM_IC_11AC_SERIES))
+			phydm_noisy_detection(dm);
+	#endif
 
 	#if defined(PHYDM_DCC_ENHANCE) && defined(PHYDM_SUPPORT_CCKPD)
 		phydm_dig_cckpd_coex(dm);
@@ -2340,7 +2462,7 @@ void phydm_watchdog(struct dm_struct *dm)
 	odm_dtc(dm);
 #endif
 
-	phydm_env_mntr_watchdog(dm);
+	phydm_env_mntr_set_watchdog(dm);
 
 #ifdef PHYDM_LNA_SAT_CHK_SUPPORT
 	phydm_lna_sat_chk_watchdog(dm);
@@ -2872,6 +2994,9 @@ void odm_cmn_info_update(struct dm_struct *dm, u32 cmn_info, u64 value)
 	case ODM_CMNINFO_FLATNESS_TYPE:
 		dm->flatness_type = (u8)value;
 		break;
+	case ODM_CMNINFO_TSSI_ENABLE:
+		dm->en_tssi_mode = (u8)value;
+		break;
 	default:
 		break;
 	}
@@ -2963,6 +3088,14 @@ u32 phydm_cmn_info_query(struct dm_struct *dm, enum phydm_info_query info_type)
 		return (u32)ccx_info->nhm_ratio;
 	case PHYDM_INFO_NHM_NOISE_PWR:
 		return (u32)ccx_info->nhm_level;
+	case PHYDM_INFO_NHM_PWR:
+		return (u32)ccx_info->nhm_pwr;
+	case PHYDM_INFO_NHM_ENV_RATIO:
+		return (u32)ccx_info->nhm_env_ratio;
+	case PHYDM_INFO_TXEN_CCK:
+		return (u32)fa_t->cnt_cck_txen;
+	case PHYDM_INFO_TXEN_OFDM:
+		return (u32)fa_t->cnt_ofdm_txen;
 	default:
 		return 0xffffffff;
 	}
@@ -3401,7 +3534,8 @@ void phydm_dc_cancellation(struct dm_struct *dm)
 		}
 		odm_write_dig(dm, 0x7e);
 		/*@Disable LNA*/
-		if (dm->support_ic_type & ODM_RTL8821C)
+		if (dm->support_ic_type & (ODM_RTL8821C | ODM_RTL8721D |
+					   ODM_RTL8710C))
 			halrf_rf_lna_setting(dm, HALRF_LNA_DISABLE);
 		/*Turn off 3-wire*/
 		phydm_stop_3_wire(dm, PHYDM_SET);
@@ -3478,7 +3612,8 @@ void phydm_dc_cancellation(struct dm_struct *dm)
 		/* @Turn on 3-wire*/
 		phydm_stop_3_wire(dm, PHYDM_REVERT);
 		/* @Enable LNA*/
-		if (dm->support_ic_type & ODM_RTL8821C)
+		if (dm->support_ic_type & (ODM_RTL8821C | ODM_RTL8721D |
+					   ODM_RTL8710C))
 			halrf_rf_lna_setting(dm, HALRF_LNA_ENABLE);
 
 		odm_write_dig(dm, 0x20);
@@ -3588,12 +3723,18 @@ void phydm_dc_cancellation(struct dm_struct *dm)
 		offset_i_hex[0] = (reg_value32[0] & 0xff80000) >> 19;
 		offset_q_hex[0] = (reg_value32[0] & 0x3fe00) >> 9;
 
-		/*@Before filling into registers,
-		 *offset should be multiplexed (-1)
-		 */
-		offset_i_hex[0] = 0x200 - offset_i_hex[0];
-		offset_q_hex[0] = 0x200 - offset_q_hex[0];
-
+		if ((offset_i_hex[0] > 0xF && offset_i_hex[0] < 0x1F1)
+		    || (offset_q_hex[0] > 0xF && offset_q_hex[0] < 0x1F1)) {
+		    	/*@Discard outliers*/
+		   	 offset_i_hex[0] = 0x0;
+		   	 offset_q_hex[0] = 0x0;	
+		} else {
+			/*@Before filling into registers,
+		 	*offset should be multiplexed (-1)
+			 */
+			offset_i_hex[0] = 0x200 - offset_i_hex[0];
+			offset_q_hex[0] = 0x200 - offset_q_hex[0];
+		}
 		odm_set_bb_reg(dm, R_0x950, 0x1ff, offset_i_hex[0]);
 		odm_set_bb_reg(dm, R_0x950, 0x1ff0000, offset_q_hex[0]);
 	}

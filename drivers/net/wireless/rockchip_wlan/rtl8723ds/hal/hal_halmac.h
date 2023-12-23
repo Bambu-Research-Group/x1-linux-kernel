@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2015 - 2019 Realtek Corporation.
@@ -204,6 +203,7 @@ int rtw_halmac_cfg_phy_para(struct dvobj_priv *d, struct rtw_phy_parameter *para
 int rtw_halmac_led_cfg(struct dvobj_priv *d, u8 enable, u8 mode);
 void rtw_halmac_led_switch(struct dvobj_priv *d, u8 on);
 int rtw_halmac_bt_wake_cfg(struct dvobj_priv *d, u8 enable);
+int rtw_halmac_rfe_ctrl_cfg(struct dvobj_priv *d, u8 gpio);
 #ifdef CONFIG_PNO_SUPPORT
 int rtw_halmac_pno_scanoffload(struct dvobj_priv *d, u32 enable);
 #endif

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -791,7 +790,7 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 #elif (DM_ODM_SUPPORT_TYPE & ODM_AP)
 #if ((RTL8881A_SUPPORT == 1) || (RTL8192E_SUPPORT == 1) || (RTL8814A_SUPPORT == 1) || (RTL8822B_SUPPORT == 1) || (RTL8197F_SUPPORT == 1) || (RTL8192F_SUPPORT == 1)) /*@jj add 20170822*/
-		if (dm->support_ic_type == ODM_RTL8881A || dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type & PHYDM_IC_3081_SERIES)
+		if (dm->support_ic_type & (ODM_RTL8881A | ODM_RTL8192E | ODM_RTL8192F | PHYDM_IC_3081_SERIES))
 			platform_h2c_id = H2C_88XX_RSSI_REPORT;
 		else
 #endif
@@ -853,7 +852,7 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 #elif (DM_ODM_SUPPORT_TYPE & ODM_AP)
 #if ((RTL8881A_SUPPORT == 1) || (RTL8192E_SUPPORT == 1) || (RTL8814A_SUPPORT == 1) || (RTL8822B_SUPPORT == 1) || (RTL8197F_SUPPORT == 1) || (RTL8192F_SUPPORT == 1)) /*@jj add 20170822*/
-		if (dm->support_ic_type == ODM_RTL8881A || dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type & PHYDM_IC_3081_SERIES)
+		if (dm->support_ic_type & (ODM_RTL8881A | ODM_RTL8192E | ODM_RTL8192F | PHYDM_IC_3081_SERIES))
 			platform_h2c_id = H2C_88XX_RA_PARA_ADJUST;
 		else
 #endif
@@ -904,7 +903,7 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 #elif (DM_ODM_SUPPORT_TYPE & ODM_AP)
 #if ((RTL8881A_SUPPORT == 1) || (RTL8192E_SUPPORT == 1) || (RTL8814A_SUPPORT == 1) || (RTL8822B_SUPPORT == 1) || (RTL8197F_SUPPORT == 1) || (RTL8192F_SUPPORT == 1)) /*@jj add 20170822*/
-		if (dm->support_ic_type == ODM_RTL8881A || dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type & PHYDM_IC_3081_SERIES)
+		if (dm->support_ic_type & (ODM_RTL8881A | ODM_RTL8192E | ODM_RTL8192F | PHYDM_IC_3081_SERIES))
 			platform_h2c_id = H2C_88XX_FW_TRACE_EN;
 		else
 #endif
@@ -922,7 +921,8 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 	case PHYDM_H2C_TXBF:
 #if ((RTL8192E_SUPPORT == 1) || (RTL8812A_SUPPORT == 1))
-		platform_h2c_id = 0x41; /*@H2C_TxBF*/
+		if (dm->support_ic_type & (ODM_RTL8192E | ODM_RTL8812))
+			platform_h2c_id = 0x41; /*@H2C_TxBF*/
 #endif
 		break;
 
@@ -1459,6 +1459,13 @@ s16 phydm_get_tx_power_mdbm(struct dm_struct *dm, u8 rf_path,
 	return tx_power_dbm;
 }
 
+u32 phydm_rfe_ctrl_gpio(struct dm_struct *dm, u8 gpio_num)
+{
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+	return rtw_phydm_rfe_ctrl_gpio(dm->adapter, gpio_num);
+#endif
+	return 0;
+}
 
 u64 phydm_division64(u64 x, u64 y)
 {

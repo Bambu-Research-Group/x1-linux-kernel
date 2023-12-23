@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -189,12 +188,6 @@ void rtl8188f_download_rsvd_page(PADAPTER padapter, u8 mstatus);
 #ifdef CONFIG_P2P
 void rtl8188f_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 #endif /* CONFIG_P2P */
-
-#ifdef CONFIG_TDLS
-#ifdef CONFIG_TDLS_CH_SW
-void rtl8188f_set_BcnEarly_C2H_Rpt_cmd(PADAPTER padapter, u8 enable);
-#endif
-#endif
 
 #ifdef CONFIG_P2P_WOWLAN
 void rtl8188f_set_p2p_wowlan_offload_cmd(PADAPTER padapter);

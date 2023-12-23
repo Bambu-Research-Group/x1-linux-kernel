@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -43,6 +42,7 @@ enum _CHIP_TYPE {
 	RTL8192F,
 	RTL8822C,
 	RTL8814B,
+	RTL8723F,
 	MAX_CHIP_TYPE
 };
 
@@ -199,11 +199,8 @@ typedef enum _HW_VARIABLES {
 	HW_VAR_MDIO,
 	HW_VAR_L1OFF_CAPABILITY,
 	HW_VAR_L1OFF_NIC_SUPPORT,
-#ifdef CONFIG_TDLS
-#ifdef CONFIG_TDLS_CH_SW
-	HW_VAR_TDLS_BCN_EARLY_C2H_RPT,
-#endif
-#endif
+	HW_VAR_BCN_EARLY_C2H_RPT,
+	HW_VAR_SET_DRV_ERLY_INT,
 	HW_VAR_DUMP_MAC_TXFIFO,
 	HW_VAR_PWR_CMD,
 #ifdef CONFIG_FW_HANDLE_TXBCN
@@ -267,7 +264,6 @@ typedef enum _HAL_ODM_VARIABLE {
 	HAL_ODM_STA_INFO,
 	HAL_ODM_P2P_STATE,
 	HAL_ODM_WIFI_DISPLAY_STATE,
-	HAL_ODM_REGULATION,
 	HAL_ODM_INITIAL_GAIN,
 	HAL_ODM_RX_INFO_DUMP,
 	HAL_ODM_RX_Dframe_INFO,
@@ -306,7 +302,13 @@ struct hal_ops {
 	 * mgnt_xmit should be implemented to run in interrupt context
 	 */
 	s32(*mgnt_xmit)(_adapter *padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32(*hal_mgmt_xmitframe_enqueue)(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32(*hal_xmitframe_enqueue)(_adapter *padapter, struct xmit_frame *pxmitframe);
+	#if defined (CONFIG_CONCURRENT_MODE)  && defined (CONFIG_TSF_SYNC)
+	void(*tsf_sync)(_adapter *Adapter);
+	#endif
 #ifdef CONFIG_XMIT_THREAD_MODE
 	s32(*xmit_thread_handler)(_adapter *padapter);
 #endif
@@ -524,6 +526,8 @@ typedef enum _HARDWARE_TYPE {
 	HARDWARE_TYPE_RTL8814BE,
 	HARDWARE_TYPE_RTL8814BU,
 	HARDWARE_TYPE_RTL8814BS,
+	HARDWARE_TYPE_RTL8723FU,
+	HARDWARE_TYPE_RTL8723FS,
 	HARDWARE_TYPE_MAX,
 } HARDWARE_TYPE;
 
@@ -656,6 +660,11 @@ typedef enum _HARDWARE_TYPE {
 #define IS_HARDWARE_TYPE_8814B(_Adapter)		\
 		(IS_HARDWARE_TYPE_8814BE(_Adapter) || IS_HARDWARE_TYPE_8814BU(_Adapter) || IS_HARDWARE_TYPE_8814BS(_Adapter))
 
+#define IS_HARDWARE_TYPE_8723FU(_Adapter)		(rtw_get_hw_type(_Adapter) == HARDWARE_TYPE_RTL8723FU)
+#define IS_HARDWARE_TYPE_8723FS(_Adapter)		(rtw_get_hw_type(_Adapter) == HARDWARE_TYPE_RTL8723FS)
+#define IS_HARDWARE_TYPE_8723F(_Adapter)		\
+		(IS_HARDWARE_TYPE_8723FU(_Adapter) || IS_HARDWARE_TYPE_8723FS(_Adapter))
+
 #define IS_HARDWARE_TYPE_JAGUAR2(_Adapter)		\
 	(IS_HARDWARE_TYPE_8814A(_Adapter) || IS_HARDWARE_TYPE_8821B(_Adapter) || IS_HARDWARE_TYPE_8822B(_Adapter) || IS_HARDWARE_TYPE_8821C(_Adapter))
 
@@ -664,6 +673,8 @@ typedef enum _HARDWARE_TYPE {
 
 #define IS_HARDWARE_TYPE_JAGUAR3(_Adapter)		\
 	(IS_HARDWARE_TYPE_8814B(_Adapter) || IS_HARDWARE_TYPE_8822C(_Adapter))
+
+#define IS_HARDWARE_TYPE_JAGUAR3_11N(_Adapter)	IS_HARDWARE_TYPE_8723F(_Adapter)
 
 #define IS_HARDWARE_TYPE_JAGUAR_ALL(_Adapter)		\
 	(IS_HARDWARE_TYPE_JAGUAR_AND_JAGUAR2(_Adapter) || IS_HARDWARE_TYPE_JAGUAR3(_Adapter))
@@ -747,6 +758,9 @@ u8	rtw_hal_pci_l1off_capability(_adapter *padapter);
 
 u8	rtw_hal_intf_ps_func(_adapter *padapter, HAL_INTF_PS_FUNC efunc_id, u8 *val);
 
+#ifdef CONFIG_RTW_MGMT_QUEUE
+s32	rtw_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 s32	rtw_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_xmit(_adapter *padapter, struct xmit_frame *pxmitframe);
 s32	rtw_hal_mgnt_xmit(_adapter *padapter, struct xmit_frame *pmgntframe);
@@ -847,6 +861,7 @@ s32 rtw_hal_macid_sleep(_adapter *adapter, u8 macid);
 s32 rtw_hal_macid_wakeup(_adapter *adapter, u8 macid);
 s32 rtw_hal_macid_sleep_all_used(_adapter *adapter);
 s32 rtw_hal_macid_wakeup_all_used(_adapter *adapter);
+
 s32 rtw_hal_macid_drop(_adapter *adapter, u8 macid);
 s32 rtw_hal_macid_undrop(_adapter *adapter, u8 macid);
 

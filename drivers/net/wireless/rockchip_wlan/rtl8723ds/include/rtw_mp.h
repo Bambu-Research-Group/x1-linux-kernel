@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -301,6 +300,10 @@ enum {
 #ifdef CONFIG_WOWLAN
 	MP_WOW_ENABLE,
 	MP_WOW_SET_PATTERN,
+#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+	MP_WOW_SET_KEEP_ALIVE_PATTERN,
+#endif /*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
+
 #endif
 #ifdef CONFIG_AP_WOWLAN
 	MP_AP_WOW_ENABLE,
@@ -389,6 +392,9 @@ struct mp_priv {
 	BOOLEAN mplink_btx;
 
 	bool tssitrk_on;
+	bool efuse_update_on;
+	bool efuse_update_file;
+	char efuse_file_path[128];
 };
 
 typedef struct _IOCMD_STRUCT_ {
@@ -419,7 +425,8 @@ typedef struct _MP_FIRMWARE {
 } RT_MP_FIRMWARE, *PRT_MP_FIRMWARE;
 
 
-
+#define GET_MPPRIV(__padapter) (struct mp_priv*)(&(((struct _ADAPTER*)__padapter)->mppriv))
+#define GET_EFUSE_UPDATE_ON(_padapter)	(GET_MPPRIV(_padapter)->efuse_update_on)
 
 /* *********************************************************************** */
 

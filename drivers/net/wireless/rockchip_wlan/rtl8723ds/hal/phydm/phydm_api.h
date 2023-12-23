@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -27,8 +26,8 @@
 #ifndef __PHYDM_API_H__
 #define __PHYDM_API_H__
 
-/* 2019.08.02 modify stop trx api for jgr3*/
-#define PHYDM_API_VERSION "2.2"
+/* 2019.10.22 Add get/shift rxagc API for 8822C*/
+#define PHYDM_API_VERSION "2.3"
 
 /* @1 ============================================================
  * 1  Definition
@@ -134,7 +133,7 @@ u8 phydm_stop_ic_trx(void *dm_void, u8 set_type);
 
 void phydm_dis_cck_trx(void *dm_void, u8 set_type);
 
-void phydm_bw_fixed_enable(void *dm_void, boolean enable);
+void phydm_bw_fixed_enable(void *dm_void, u8 enable);
 
 void phydm_bw_fixed_setting(void *dm_void);
 
@@ -158,7 +157,13 @@ void phydm_stop_ck320(void *dm_void, u8 enable);
 
 boolean
 phydm_set_bb_txagc_offset(void *dm_void, s8 power_offset, u8 add_half_db);
+
+boolean phydm_spur_case_mapping(void *dm_void);
+
+enum odm_rf_band phydm_ch_to_rf_band(void *dm_void, u8 central_ch);
 #ifdef PHYDM_IC_JGR3_SERIES_SUPPORT
+u32 phydm_rf_psd_jgr3(void *dm_void, u8 path, u32 tone_idx);
+
 u8 phydm_csi_mask_setting_jgr3(void *dm_void, u32 enable, u32 ch, u32 bw,
 			       u32 f_intf, u32 sec_ch, u8 wgt);
 
@@ -191,6 +196,10 @@ phydm_api_set_txagc(void *dm_void, u32 power_index, enum rf_path path,
 
 u8 phydm_api_get_txagc(void *dm_void, enum rf_path path, u8 hw_rate);
 
+#if (RTL8822C_SUPPORT)
+void phydm_shift_rxagc_table(void *dm_void, boolean shift_up, u8 shift);
+#endif
+
 boolean
 phydm_api_switch_bw_channel(void *dm_void, u8 central_ch, u8 primary_ch_idx,
 			    enum channel_width bandwidth);
@@ -199,6 +208,10 @@ boolean
 phydm_api_trx_mode(void *dm_void, enum bb_path tx_path, enum bb_path rx_path,
 		   enum bb_path tx_path_ctrl);
 
+#endif
+
+#ifdef PHYDM_COMMON_API_NOT_SUPPORT
+u8 config_phydm_read_txagc_n(void *dm_void, enum rf_path path, u8 hw_rate);
 #endif
 
 #ifdef CONFIG_MCC_DM

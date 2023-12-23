@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -354,7 +353,7 @@ odm_read_and_config_mp_8723d_radioa(struct dm_struct *dm)
 u32
 odm_get_version_mp_8723d_radioa(void)
 {
-		return 40;
+		return 42;
 }
 
 /******************************************************************************

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -1873,6 +1872,7 @@ Current IOREG MAP
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8723D		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8710B		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_8192F		255
+#define LAST_ENTRY_OF_TX_PKT_BUFFER_8723F		255
 #define POLLING_LLT_THRESHOLD				20
 #if defined(CONFIG_RTL8723B) && defined(CONFIG_PCI_HCI)
 	#define POLLING_READY_TIMEOUT_COUNT		6000

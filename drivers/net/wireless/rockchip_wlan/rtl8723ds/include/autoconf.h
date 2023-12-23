@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -51,7 +50,6 @@
 	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif
 
-#define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
 	#define CONFIG_NATIVEAP_MLME
 	#ifndef CONFIG_NATIVEAP_MLME
@@ -60,7 +58,6 @@
 	/* #define CONFIG_FIND_BEST_CHANNEL */
 #endif
 
-#define CONFIG_P2P
 #ifdef CONFIG_P2P
 	/* Added by Albert 20110812
 	The CONFIG_WFD is for supporting the Wi-Fi display */
@@ -94,9 +91,6 @@
 	#endif
 	/* #define DBG_RUNTIME_PORT_SWITCH */
 #endif /* CONFIG_CONCURRENT_MODE */
-
-#define CONFIG_LAYER2_ROAMING
-#define CONFIG_LAYER2_ROAMING_RESUME
 
 /*
  * Hareware/Firmware Related Config
@@ -157,6 +151,8 @@
 
 #define CONFIG_LONG_DELAY_ISSUE
 /* #define CONFIG_PATCH_JOIN_WRONG_CHANNEL */
+
+#define CONFIG_RX_PACKET_APPEND_FCS
 
 
 /*
@@ -238,9 +234,7 @@
 #define CONFIG_HW_ANTENNA_DIVERSITY
 #endif
 
-#if (CONFIG_RTW_ADAPTIVITY_EN == 1)
-	#define CONFIG_RTW_ADAPTIVITY_TH_L2H_INI 0xf3
-#endif
+#define CONFIG_RTW_ADAPTIVITY_TH_L2H_INI 0xf3
 
 #ifdef CONFIG_RTW_NAPI
 /*#define CONFIG_RTW_NAPI_DYNAMIC*/

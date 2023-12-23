@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2016 - 2017 Realtek Corporation.
@@ -293,6 +292,7 @@ struct coex_sta_8723d_1ant {
 
 	boolean		is_A2DP_3M;
 	boolean		voice_over_HOGP;
+	boolean		bt_a2dp_active;
 	u8		bt_info;
 	u8		forbidden_slot;
 	u8		hid_busy_num;

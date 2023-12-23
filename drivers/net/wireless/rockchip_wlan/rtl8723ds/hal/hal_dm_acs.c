@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2014 - 2017 Realtek Corporation.
@@ -88,8 +87,16 @@ u8 rtw_phydm_nhm_ratio(_adapter *adapter)
 {
 	struct dm_struct *phydm = adapter_to_phydm(adapter);
 
-	return phydm_cmn_info_query(phydm, (enum phydm_info_query) PHYDM_INFO_NHM_RATIO);
+	return phydm_cmn_info_query(phydm, (enum phydm_info_query) PHYDM_INFO_NHM_ENV_RATIO);
 }
+
+u8 rtw_phydm_nhm_noise_pwr(_adapter *adapter)
+{
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+
+	return phydm_cmn_info_query(phydm, (enum phydm_info_query) PHYDM_INFO_NHM_PWR);
+}
+
 void rtw_acs_reset(_adapter *adapter)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
@@ -204,7 +211,8 @@ void rtw_acs_get_rst(_adapter *adapter)
 			(rpt.clm_rpt_stamp == hal_data->acs.trig_rpt.clm_rpt_stamp) &&
 			(rpt.nhm_rpt_stamp == hal_data->acs.trig_rpt.nhm_rpt_stamp)){
 			hal_data->acs.clm_ratio[chan_idx] = rpt.clm_ratio;
-			hal_data->acs.nhm_ratio[chan_idx] = rpt.nhm_ratio;
+			hal_data->acs.nhm_ratio[chan_idx] =  rpt.nhm_env_ratio;
+			hal_data->acs.env_mntr_rpt[chan_idx] = (rpt.nhm_noise_pwr -100);
 			_rtw_memcpy(&hal_data->acs.nhm[chan_idx][0], rpt.nhm_result, NHM_RPT_NUM);
 
 			/*RTW_INFO("[ACS] get_rst success (rst = 0x%02x, clm_stamp:%d:%d, nhm_stamp:%d:%d)\n",
@@ -229,6 +237,8 @@ void rtw_acs_get_rst(_adapter *adapter)
 	#ifdef CONFIG_RTW_ACS_DBG
 	RTW_INFO("[ACS] Result CH:%d, CLM:%d NHM:%d\n",
 		cur_chan, hal_data->acs.clm_ratio[chan_idx], hal_data->acs.nhm_ratio[chan_idx]);
+	RTW_INFO("[ACS] Result NHM(dBm):%d\n",
+		hal_data->acs.env_mntr_rpt[chan_idx] );
 	#endif
 }
 
@@ -359,6 +369,18 @@ u8 rtw_acs_get_nhm_ratio_by_ch_num(_adapter *adapter, u8 chan)
 
 	return hal_data->acs.nhm_ratio[chan_idx];
 }
+u8 rtw_acs_get_nhm_noise_pwr_by_ch_idx(_adapter *adapter, u8 ch_idx)
+{
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+
+	if (ch_idx >= MAX_CHANNEL_NUM) {
+		RTW_ERR("%s [ACS] ch_idx(%d) is invalid\n", __func__, ch_idx);
+		return 0;
+	}
+
+	return hal_data->acs.env_mntr_rpt[ch_idx];
+}
+
 u8 rtw_acs_get_num_ratio_by_ch_idx(_adapter *adapter, u8 ch_idx)
 {
 	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
@@ -429,6 +451,36 @@ void rtw_acs_update_current_info(_adapter *adapter)
 	#ifdef CONFIG_RTW_ACS_DBG
 	rtw_acs_current_info_dump(RTW_DBGDUMP, adapter);
 	#endif
+}
+/*
+rsni
+para1:rcpi=>RSSI in dbm
+para2:anpi=>nhm in dbm
+range:0~255
+255: is not available (defined by 802.11k spec)
+
+*/
+u8 rtw_acs_get_rsni(_adapter *adapter, s8 rcpi, u8 ch)
+{
+	struct dm_struct *phydm = adapter_to_phydm(adapter);
+	HAL_DATA_TYPE *hal_data = GET_HAL_DATA(adapter);
+	u8 rsni = 255;
+	s8 anpi = 0;
+	int chan_idx = -1;
+
+	if(ch == 0)
+		goto exit;
+
+	chan_idx = rtw_chset_search_ch(adapter_to_chset(adapter), ch);
+	if(chan_idx == -1)
+		goto exit;
+
+	anpi = rtw_acs_get_nhm_noise_pwr_by_ch_idx(adapter, chan_idx);
+	if((rcpi != 0) && (anpi != 0))
+	 	rsni = phydm_env_mntr_get_802_11_k_rsni(phydm, rcpi, anpi);
+	RTW_DBG("[ACS][RSNI]ch=%d chan_idx=%d RSNI=%u RSSI=%d NHM=%d\n", ch, chan_idx, rsni,rcpi, anpi);
+exit:
+	return rsni;
 }
 #endif /*CONFIG_RTW_ACS*/
 

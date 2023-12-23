@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2015 - 2017 Realtek Corporation.
@@ -1403,7 +1402,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 				rates = rates_by_sections[CCK].rates;
 				for (j = 0; j < rate_array_sz; ++j) {
 					power_index = phy_get_tx_power_index_ex(iface, path, CCK, rates[j], bw, band, center_ch, ch);
-					rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+					rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 
 					shift = rate % 4;
 					if (shift == 0) {
@@ -1445,7 +1444,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rates = rates_by_sections[OFDM].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
 				power_index = phy_get_tx_power_index_ex(iface, path, OFDM, rates[j], bw, band, center_ch, ch);
-				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+				rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 
 				shift = rate % 4;
 				if (shift == 0) {
@@ -1485,7 +1484,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rates = rates_by_sections[HT_MCS0_MCS7].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
 				power_index = phy_get_tx_power_index_ex(iface, path, HT_1SS, rates[j], bw, band, center_ch, ch);
-				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+				rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 
 				shift = rate % 4;
 				if (shift == 0) {
@@ -1525,7 +1524,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rates = rates_by_sections[HT_MCS8_MCS15].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
 				power_index = phy_get_tx_power_index_ex(iface, path, HT_2SS, rates[j], bw, band, center_ch, ch);
-				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+				rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 
 				shift = rate % 4;
 				if (shift == 0) {
@@ -1564,7 +1563,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rates = rates_by_sections[VHT_1SSMCS0_1SSMCS9].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
 				power_index = phy_get_tx_power_index_ex(iface, path, VHT_1SS, rates[j], bw, band, center_ch, ch);
-				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+				rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 
 				shift = rate % 4;
 				if (shift == 0) {
@@ -1600,7 +1599,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 			rates = rates_by_sections[VHT_2SSMCS0_2SSMCS9].rates;
 			for (j = 0; j < rate_array_sz; ++j) {
 				power_index = phy_get_tx_power_index_ex(iface, path, VHT_2SS, rates[j], bw, band, center_ch, ch);
-				rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+				rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 
 				shift = rate % 4;
 				if (shift == 0) {
@@ -1654,7 +1653,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 					rates = rates_by_sections[CCK].rates;
 					for (j = 0; j < rate_array_sz; ++j) {
 						power_index = phy_get_tx_power_index_ex(iface, path, CCK, rates[j], bw, band, center_ch, ch);
-						rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+						rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 						agc_buff[path][rate] = power_index;
 					}
 				}
@@ -1664,7 +1663,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 				rates = rates_by_sections[OFDM].rates;
 				for (j = 0; j < rate_array_sz; ++j) {
 					power_index = phy_get_tx_power_index_ex(iface, path, OFDM, rates[j], bw, band, center_ch, ch);
-					rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+					rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 					agc_buff[path][rate] = power_index;
 				}
 				/* HT */
@@ -1672,7 +1671,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 				rates = rates_by_sections[HT_MCS0_MCS7].rates;
 				for (j = 0; j < rate_array_sz; ++j) {
 					power_index = phy_get_tx_power_index_ex(iface, path, HT_1SS, rates[j], bw, band, center_ch, ch);
-					rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+					rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 					agc_buff[path][rate] = power_index;
 				}
 
@@ -1680,7 +1679,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 				rates = rates_by_sections[HT_MCS8_MCS15].rates;
 				for (j = 0; j < rate_array_sz; ++j) {
 					power_index = phy_get_tx_power_index_ex(iface, path, HT_2SS, rates[j], bw, band, center_ch, ch);
-					rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+					rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 					agc_buff[path][rate] = power_index;
 				}
 				/* VHT */
@@ -1688,7 +1687,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 				rates = rates_by_sections[VHT_1SSMCS0_1SSMCS9].rates;
 				for (j = 0; j < rate_array_sz; ++j) {
 					power_index = phy_get_tx_power_index_ex(iface, path, VHT_1SS, rates[j], bw, band, center_ch, ch);
-					rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+					rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 					agc_buff[path][rate] = power_index;
 				}
 
@@ -1696,7 +1695,7 @@ u8 rtw_hal_dl_mcc_fw_rsvd_page(_adapter *adapter, u8 *pframe, u16 *index,
 				rates = rates_by_sections[VHT_2SSMCS0_2SSMCS9].rates;
 				for (j = 0; j < rate_array_sz; ++j) {
 					power_index = phy_get_tx_power_index_ex(iface, path, VHT_2SS, rates[j], bw, band, center_ch, ch);
-					rate = PHY_GetRateIndexOfTxPowerByRate(rates[j]);
+					rate = phy_get_rate_idx_of_txpwr_by_rate(rates[j]);
 					agc_buff[path][rate] = power_index;
 				}
 			}
@@ -1755,6 +1754,7 @@ static void rtw_hal_set_fw_mcc_rsvd_page(PADAPTER padapter)
 
 	rtw_hal_set_hwreg(port0_iface, HW_VAR_H2C_FW_JOINBSSRPT, (u8 *)(&mstatus));
 
+#ifdef CONFIG_AP_MODE
 	/* Re-Download beacon */
 	for (i = 0; i < MAX_MCC_NUM; i++) {
 		iface = pmccobjpriv->iface[i];
@@ -1768,6 +1768,7 @@ static void rtw_hal_set_fw_mcc_rsvd_page(PADAPTER padapter)
 			tx_beacon_hdl(iface, NULL);
 		}
 	}
+#endif
 }
 
 static void rtw_hal_set_mcc_rsvdpage_cmd(_adapter *padapter)
@@ -3400,14 +3401,34 @@ u8 rtw_hal_set_mcc_setting_start_bss_network(PADAPTER padapter, u8 chbw_allow)
 	if (MCC_EN(padapter)) {
 		/* channel bw offset can not be allowed, start MCC */
 		if (chbw_allow == _FALSE) {
-				struct mcc_obj_priv *pmccobjpriv = &(adapter_to_dvobj(padapter)->mcc_objpriv);
+			struct mcc_obj_priv *pmccobjpriv = &(adapter_to_dvobj(padapter)->mcc_objpriv);
 
-				rtw_hal_mcc_restore_iqk_val(padapter);
-				_enter_critical_mutex(&pmccobjpriv->mcc_mutex, NULL);
-				ret = rtw_hal_set_mcc_setting(padapter, MCC_SETCMD_STATUS_START_CONNECT);
-				_exit_critical_mutex(&pmccobjpriv->mcc_mutex, NULL);
+			//rtw_hal_mcc_restore_iqk_val(padapter);
+			_enter_critical_mutex(&pmccobjpriv->mcc_mutex, NULL);
+			ret = rtw_hal_set_mcc_setting(padapter, MCC_SETCMD_STATUS_START_CONNECT);
+			_exit_critical_mutex(&pmccobjpriv->mcc_mutex, NULL);
+
+			if (ret == _FAIL) { /* MCC Start fail, AP/GO switch to buddy's channel */
+				u8 ch_to_set = 0, bw_to_set, offset_to_set;
+
+				rtw_hal_set_mcc_status(padapter, MCC_STATUS_NEED_MCC | MCC_STATUS_DOING_MCC);
+				rtw_hal_set_mcc_setting_disconnect(padapter);
+				if (rtw_mi_get_ch_setting_union_no_self(
+						padapter, &ch_to_set, &bw_to_set,
+						&offset_to_set) != 0) {
+					PHAL_DATA_TYPE  hal = GET_HAL_DATA(padapter);
+					u8 doiqk = _TRUE;
+
+					rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK, &doiqk);
+					hal->current_channel = 0;
+					hal->current_channel_bw = CHANNEL_WIDTH_MAX;
+					set_channel_bwmode(padapter, ch_to_set, offset_to_set, bw_to_set);
+					doiqk = _FALSE;
+					rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK, &doiqk);
+				}
 			}
 		}
+	}
 
 	return ret;
 }
@@ -3477,8 +3498,16 @@ u8 rtw_hal_set_mcc_setting_join_done_chk_ch(PADAPTER padapter)
 				_enter_critical_mutex(&pmccobjpriv->mcc_mutex, NULL);
 				ret = rtw_hal_set_mcc_setting(padapter, MCC_SETCMD_STATUS_START_CONNECT);
 				_exit_critical_mutex(&pmccobjpriv->mcc_mutex, NULL);
+
+				if (ret == _FAIL) { /* MCC Start Fail, then disconenct client join */
+					rtw_hal_set_mcc_status(padapter, MCC_STATUS_NEED_MCC | MCC_STATUS_DOING_MCC);
+					rtw_disassoc_cmd(padapter, 0, RTW_CMDF_DIRECTLY);
+					rtw_indicate_disconnect(padapter, 0, _FALSE);
+					rtw_free_assoc_resources(padapter, _TRUE);
+					rtw_free_network_queue(padapter, _TRUE);
+				}
+			}
 		}
-	}
 	}
 
 	return ret;

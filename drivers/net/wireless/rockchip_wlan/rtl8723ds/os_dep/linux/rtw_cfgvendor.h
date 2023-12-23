@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -630,6 +629,8 @@ void rtw_cfgvendor_rssi_monitor_evt(_adapter *padapter);
 
 #ifdef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
 void rtw_hal_pno_random_gen_mac_addr(PADAPTER adapter);
+#endif
+#if defined(CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI) || defined(CONFIG_RTW_SCAN_RAND)
 void rtw_hal_set_hw_mac_addr(PADAPTER adapter, u8 *mac_addr);
 #endif
 

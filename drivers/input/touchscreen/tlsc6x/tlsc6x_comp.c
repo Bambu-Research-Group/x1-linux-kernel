@@ -1218,15 +1218,15 @@ static int tlsc6x_3535boot_update(u8 *pdata, u16 boot_len)
 		tlsc_info("Tlsc6x:3535 boot not need update!\n");
 		return 0;
 	}
-	
+
 	g_needKeepRamCode = 1;
-	
+
 	return tlsc6x_load_ext_binlib(pdata, boot_len);
 }
 
 static int tlsc6x_boot_update(u8 *pdata, u16 boot_len)
 {
-	
+
 	if (g_mccode == 0) {
 		return tlsc6x_3535boot_update(pdata, boot_len);
 	}
@@ -1291,26 +1291,26 @@ int tlsc6x_update_compat_ctl(u8 *pupd, int len)
 
 int tlsc6x_do_update_ifneed(void)
 {
-    u8 *fupd; 
+    u8 *fupd;
     int ret = -1;
 
-#ifdef TLSC_MUL_VENDOR
-    if(52 == tlsc_vendor_id && 08 == tlsc_project_id) {
-        fupd = fw_file_tlsc6x_52_08;
-        fw_size = ARRAY_SIZE(fw_file_tlsc6x_52_08);
-        ret = tlsc6x_update_compat_ctl((u8 *) fupd, fw_size);
-    }
-    else if(29 == tlsc_vendor_id && 08 == tlsc_project_id) {
-        fupd = fw_file_tlsc6x_29_08;
-        fw_size = ARRAY_SIZE(fw_file_tlsc6x_29_08);
-        ret = tlsc6x_update_compat_ctl((u8 *) fupd, fw_size);
-    }
-#else
-
-    fupd = fw_file_tlsc6x_7_1;
-    fw_size = ARRAY_SIZE(fw_file_tlsc6x_7_1);
-    ret = tlsc6x_update_compat_ctl((u8 *) fupd, fw_size);
-#endif
+	tlsc_info("tlsc_vendor_id = %d, tlsc_project_id = %d\n", tlsc_vendor_id, tlsc_project_id);
+	if(23 == tlsc_vendor_id && 21 == tlsc_project_id) { // N2 panel1, GC9503
+		fupd = fw_file_tlsc6x_23_21;
+		fw_size = ARRAY_SIZE(fw_file_tlsc6x_23_21);
+		tlsc_info("updating touch panel param to fw_file_tlsc6x_23_21");
+		ret = tlsc6x_update_compat_ctl((u8 *) fupd, fw_size);
+	} else if(70 == tlsc_vendor_id && 98 == tlsc_project_id){ // N2 panel2
+		fupd = fw_file_tlsc6x_70_98;
+		fw_size = ARRAY_SIZE(fw_file_tlsc6x_70_98);
+		tlsc_info("updating touch panel param to fw_file_tlsc6x_70_98");
+		ret = tlsc6x_update_compat_ctl((u8 *) fupd, fw_size);
+	} else {
+		fupd = fw_file_tlsc6x_7_1;
+		fw_size = ARRAY_SIZE(fw_file_tlsc6x_7_1);
+		tlsc_info("updating touch panel param to fw_file_tlsc6x_7_1");
+		ret = tlsc6x_update_compat_ctl((u8 *) fupd, fw_size);
+	}
 
     return ret;
 }

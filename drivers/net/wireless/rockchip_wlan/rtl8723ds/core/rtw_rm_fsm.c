@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -123,6 +122,7 @@ int rtw_init_rm(_adapter *padapter)
 		padapter, rm_timer_callback, padapter);
 	_set_timer(&prmpriv->rm_timer, CLOCK_UNIT);
 
+	prmpriv->meas_token = 1;
 	return _SUCCESS;
 }
 

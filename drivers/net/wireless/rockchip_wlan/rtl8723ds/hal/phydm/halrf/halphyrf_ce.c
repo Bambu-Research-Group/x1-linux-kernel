@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -116,6 +115,10 @@ void configure_txpower_track(void *dm_void, struct txpwrtrack_cfg *config)
 		configure_txpower_track_8814b(config);
 #endif
 
+#if RTL8723F_SUPPORT
+	if (dm->support_ic_type == ODM_RTL8723F)
+		configure_txpower_track_8723f(config);
+#endif
 
 }
 
@@ -849,7 +852,7 @@ void odm_txpowertracking_callback_thermal_meter(void *adapter)
 	cali_info->tx_powercount = 0;
 }
 
-#if (RTL8822C_SUPPORT == 1 || RTL8814B_SUPPORT == 1)
+#if (RTL8822C_SUPPORT == 1 || RTL8814B_SUPPORT == 1  || RTL8723F_SUPPORT == 1)
 void
 odm_txpowertracking_new_callback_thermal_meter(void *dm_void)
 {

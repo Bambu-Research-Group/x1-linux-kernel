@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -321,6 +320,8 @@ u8 phydm_get_tx_power_dbm(struct dm_struct *dm, u8 rf_path,
 
 s16 phydm_get_tx_power_mdbm(struct dm_struct *dm, u8 rf_path,
 					u8 rate, u8 bandwidth, u8 channel);
+
+u32 phydm_rfe_ctrl_gpio(struct dm_struct *dm, u8 gpio_num);
 
 u64 phydm_division64(u64 x, u64 y);
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -331,9 +330,6 @@ PHY_QueryRFReg_8723D(
 {
 	u32 Original_Value, Readback_Value, BitShift;
 
-        if (eRFPath >= MAX_RF_PATH)
-                return 0;
-
 #if (DISABLE_BB_RF == 1)
 	return 0;
 #endif
@@ -374,9 +370,6 @@ PHY_SetRFReg_8723D(
 )
 {
 	u32		Original_Value, BitShift;
-
-        if (eRFPath >= MAX_RF_PATH)
-                return;
 
 #if (DISABLE_BB_RF == 1)
 	return;
@@ -625,6 +618,7 @@ PHY_RFConfig8723D(
 )
 {
 	int		rtStatus = _SUCCESS;
+	int cnt;
 
 	/* */
 	/* RF config */
@@ -632,6 +626,17 @@ PHY_RFConfig8723D(
 	rtStatus = PHY_RF6052_Config8723D(Adapter);
 	/* 20151207 LCK done at RadioA table */
 	/* PHY_BB8723D_Config_1T(Adapter); */
+
+	/* poll LCK triggered by Radio A table */
+	for (cnt = 0; cnt < 100; cnt++) {
+		if (phy_query_rf_reg(Adapter, RF_PATH_A, RF_CHNLBW, 0x8000) != 0x1)
+			break;
+		rtw_mdelay_os(10);
+	}
+
+	if (cnt == 100)
+		RTW_WARN("LCK timeout\n");
+	RTW_INFO("LCK cnt=%d\n", cnt);
 
 	return rtStatus;
 }

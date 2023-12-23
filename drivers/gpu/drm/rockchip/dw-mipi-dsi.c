@@ -1480,6 +1480,7 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	struct drm_encoder *encoder = &dsi->encoder;
 	struct drm_connector *connector = &dsi->connector;
 	int ret;
+	int scan = 1, max_scan = 5;
 
 	ret = dw_mipi_dsi_dual_channel_probe(dsi);
 	if (ret)
@@ -1488,8 +1489,20 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (dsi->master)
 		return 0;
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
-					  &dsi->panel, &dsi->bridge);
+	// scan dsi-ports-port@<scan>-remote-endpoint
+	for(scan = 1; scan <= max_scan; scan++){
+		ret = drm_of_find_panel_or_bridge(dev->of_node, scan, -1,
+				&dsi->panel, &dsi->bridge);
+		if(ret != -ENODEV){
+			DRM_DEV_INFO(dev, "find panel: %d", scan);
+			break;
+		}
+	}
+	if(scan > max_scan){
+		DRM_DEV_ERROR(dev, "Failed to find panel or bridge: %d\n", ret);
+		return ret;
+	}
+
 	if (ret) {
 		DRM_DEV_ERROR(dev, "Failed to find panel or bridge: %d\n", ret);
 		return ret;

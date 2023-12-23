@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -3523,7 +3522,6 @@ Hal_InitPGData(
 		} else {
 			/* Read EFUSE real map to shadow. */
 			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI, _FALSE);
-			_rtw_memcpy((void *)PROMContent, (void *)pHalData->efuse_eeprom_data, HWSET_MAX_SIZE_8723D);
 		}
 	} else {
 		/* autoload fail */
@@ -3531,7 +3529,6 @@ Hal_InitPGData(
 		/* update to default value 0xFF */
 		if (_FALSE == pHalData->EepromOrEfuse)
 			EFUSE_ShadowMapUpdate(padapter, EFUSE_WIFI, _FALSE);
-		_rtw_memcpy((void *)PROMContent, (void *)pHalData->efuse_eeprom_data, HWSET_MAX_SIZE_8723D);
 	}
 
 #ifdef CONFIG_EFUSE_CONFIG_FILE
@@ -4904,11 +4901,6 @@ u8 SetHwReg8723D(PADAPTER padapter, u8 variable, u8 *val)
 		}
 		break;
 
-#if defined(CONFIG_TDLS) && defined(CONFIG_TDLS_CH_SW)
-	case HW_VAR_TDLS_BCN_EARLY_C2H_RPT:
-		rtl8723d_set_BcnEarly_C2H_Rpt_cmd(padapter, *val);
-		break;
-#endif	
 	default:
 		ret = SetHwReg(padapter, variable, val);
 		break;
@@ -4917,6 +4909,7 @@ u8 SetHwReg8723D(PADAPTER padapter, u8 variable, u8 *val)
 	return ret;
 }
 
+#ifdef CONFIG_PROC_DEBUG
 struct qinfo_8723d {
 	u32 head:8;
 	u32 pkt_num:7;
@@ -5005,6 +4998,7 @@ static void dump_mac_txfifo_8723d(void *sel, _adapter *adapter)
 		RTW_PRINT_SEL(sel, "HPQ: %d, LPQ: %d, NPQ: %d, EPQ: %d, PUBQ: %d\n"
 			, hpq, lpq, npq, epq, pubq);
 }
+#endif
 
 void rtl8723d_read_wmmedca_reg(PADAPTER adapter, u16 *vo_params, u16 *vi_params, u16 *be_params, u16 *bk_params)
 {
@@ -5149,12 +5143,14 @@ void GetHwReg8723D(PADAPTER padapter, u8 variable, u8 *val)
 		*val = rtw_read8(padapter, REG_SYS_CLKR);
 		break;
 #endif
+#ifdef CONFIG_PROC_DEBUG
 	case HW_VAR_DUMP_MAC_QUEUE_INFO:
 		dump_mac_qinfo_8723d(val, padapter);
 		break;
 	case HW_VAR_DUMP_MAC_TXFIFO:
 		dump_mac_txfifo_8723d(val, padapter);
 		break;
+#endif
 	default:
 		GetHwReg(padapter, variable, val);
 		break;

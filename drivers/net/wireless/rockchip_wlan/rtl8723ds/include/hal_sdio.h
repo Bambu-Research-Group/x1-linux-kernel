@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -81,5 +80,16 @@ void dbg_rtw_sdio_free_xmitbuf_sema_down(struct xmit_priv *xmit, const char *cal
 #endif /* DBG_SDIO_FREE_XMIT_BUF_SEMA */
 #endif /* SDIO_FREE_XMIT_BUF_SEMA */
 #endif /* !CONFIG_SDIO_TX_TASKLET */
+
+s32 sdio_initrecvbuf(struct recv_buf *recvbuf, _adapter *adapter);
+void sdio_freerecvbuf(struct recv_buf *recvbuf);
+
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT
+void dump_recvbuf_pwait_conf(void *sel, struct recv_priv *recvpriv);
+#ifdef CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST
+int recvbuf_pwait_config_req(struct recv_priv *recvpriv, enum rtw_pwait_type type, s32 time, s32 cnt_lmt);
+int recvbuf_pwait_config_hdl(struct recv_priv *recvpriv, struct recv_buf *rbuf);
+#endif /* CONFIG_SDIO_RECVBUF_PWAIT_RUNTIME_ADJUST */
+#endif /* CONFIG_SDIO_RECVBUF_PWAIT */
 
 #endif /* __HAL_SDIO_H_ */

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -306,6 +305,17 @@ static s32 xmit_xmitframes(PADAPTER padapter, struct xmit_priv *pxmitpriv)
 
 	rtw_hal_get_def_var(padapter, HAL_DEF_TX_PAGE_SIZE, &page_size);
 
+#ifdef CONFIG_RTW_MGMT_QUEUE 
+	/* dump management frame directly */
+	do {
+		pxmitframe = rtw_dequeue_mgmt_xframe(pxmitpriv);
+		if (pxmitframe)
+			padapter->hal_func.mgnt_xmit(padapter, pxmitframe);
+	} while (pxmitframe != NULL);
+
+	hwentry--;
+#endif
+
 	if (padapter->registrypriv.wifi_spec == 1) {
 		for (idx = 0; idx < 4; idx++)
 			inx[idx] = pxmitpriv->wmm_para_seq[idx];
@@ -591,9 +601,13 @@ thread_return rtl8723ds_xmit_thread(thread_context context)
 	u8 thread_name[20] = {0};
 #ifdef RTW_XMIT_THREAD_HIGH_PRIORITY_AGG
 #ifdef PLATFORM_LINUX
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
+	sched_set_fifo_low(current);
+#else
 	struct sched_param param = { .sched_priority = 1 };
-
+		
 	sched_setscheduler(current, SCHED_FIFO, &param);
+#endif
 #endif /* PLATFORM_LINUX */
 #endif /* RTW_XMIT_THREAD_HIGH_PRIORITY_AGG */
 
@@ -709,6 +723,31 @@ s32 rtl8723ds_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe)
 
 	return _FALSE;
 }
+
+#ifdef CONFIG_RTW_MGMT_QUEUE 
+s32 rtl8723ds_hal_mgmt_xmitframe_enqueue(PADAPTER adapter, struct xmit_frame *pxmitframe)
+{
+	struct xmit_priv *pxmitpriv;
+	s32 ret;
+
+	pxmitpriv = &adapter->xmitpriv;
+
+	ret = rtw_mgmt_xmitframe_enqueue(adapter, pxmitframe);
+	if (ret != _SUCCESS) {
+		rtw_free_xmitframe(pxmitpriv, pxmitframe);
+		pxmitpriv->tx_drop++;
+		return _FALSE;
+	}
+
+#ifdef CONFIG_SDIO_TX_TASKLET
+	tasklet_hi_schedule(&pxmitpriv->xmit_tasklet);
+#else
+	_rtw_up_sema(&pxmitpriv->SdioXmitSema);
+#endif
+
+	return _TRUE;
+}
+#endif
 
 s32	rtl8723ds_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe)
 {

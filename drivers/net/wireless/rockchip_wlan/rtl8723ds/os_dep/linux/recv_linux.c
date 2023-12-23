@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -209,8 +208,52 @@ void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 	}
 }
 
+#if defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+#if !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C)
+#ifdef CONFIG_SDIO_RX_COPY
+static int sdio_init_recvbuf_with_skb(struct recv_priv *recvpriv, struct recv_buf *rbuf, u32 size)
+{
+#ifdef CONFIG_PREALLOC_RX_SKB_BUFFER
+	if (RBUF_IS_PREALLOC(rbuf)) {
+		rbuf->pskb = rtw_alloc_skb_premem(size);
+		if (!rbuf->pskb) {
+			RTW_WARN("%s: Fail to get pre-alloc skb! size=%d\n", __func__, size);
+			return _FAIL;
+		}
+		skb_set_tail_pointer(rbuf->pskb, 0); /* TODO: do this in RTKM */
+	} else
+#else
+	{
+		SIZE_PTR tmpaddr = 0;
+		SIZE_PTR alignment = 0;
+
+		rbuf->pskb = rtw_skb_alloc(size + RECVBUFF_ALIGN_SZ);
+		if (!rbuf->pskb)
+			return _FAIL;
+
+		tmpaddr = (SIZE_PTR)rbuf->pskb->data;
+		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
+		skb_reserve(rbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
+	}
+#endif
+
+	rbuf->pskb->dev = recvpriv->adapter->pnetdev;
+
+	/* init recvbuf */
+	rbuf->phead = rbuf->pskb->head;
+	rbuf->pdata = rbuf->pskb->data;
+	rbuf->ptail = skb_tail_pointer(rbuf->pskb);
+	rbuf->pend = skb_end_pointer(rbuf->pskb);
+	rbuf->len = 0;
+
+	return _SUCCESS;
+}
+#endif /* CONFIG_SDIO_RX_COPY */
+#endif /* !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C) */
+#endif /* defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI) */
+
 /* alloc os related resource in struct recv_buf */
-int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
+int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf, u32 size)
 {
 	int res = _SUCCESS;
 
@@ -236,13 +279,20 @@ int rtw_os_recvbuf_resource_alloc(_adapter *padapter, struct recv_buf *precvbuf)
 	precvbuf->len = 0;
 
 #ifdef CONFIG_USE_USB_BUFFER_ALLOC_RX
-	precvbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)precvbuf->alloc_sz, &precvbuf->dma_transfer_addr);
+	precvbuf->pallocated_buf = rtw_usb_buffer_alloc(pusbd, (size_t)size, &precvbuf->dma_transfer_addr);
 	precvbuf->pbuf = precvbuf->pallocated_buf;
 	if (precvbuf->pallocated_buf == NULL)
 		return _FAIL;
 #endif /* CONFIG_USE_USB_BUFFER_ALLOC_RX */
 
-#endif /* CONFIG_USB_HCI */
+#elif defined(CONFIG_SDIO_HCI) || defined(CONFIG_GSPI_HCI)
+	#if !defined(CONFIG_RTL8822B) && !defined(CONFIG_RTL8822C)
+	#ifdef CONFIG_SDIO_RX_COPY
+	res = sdio_init_recvbuf_with_skb(&padapter->recvpriv, precvbuf, size);
+	#endif
+	#endif
+
+#endif /* CONFIG_XXX_HCI */
 
 	return res;
 }
@@ -349,7 +399,12 @@ static int napi_recv(_adapter *padapter, int budget)
 		rx_ok = _FALSE;
 
 #ifdef CONFIG_RTW_GRO
-		if (pregistrypriv->en_gro) {
+		/*	 
+			cloned SKB use dataref to avoid kernel release it.
+			But dataref changed in napi_gro_receive.
+			So, we should prevent cloned SKB go into napi_gro_receive.
+		*/
+		if (pregistrypriv->en_gro && !skb_cloned(pskb)) {
 			if (rtw_napi_gro_receive(&padapter->napi, pskb) != GRO_DROP)
 				rx_ok = _TRUE;
 			goto next;

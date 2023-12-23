@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -110,6 +109,10 @@ void configure_txpower_track(
 		configure_txpower_track_8814b(config);
 #endif
 
+#if RTL8723F_SUPPORT
+	if (dm->support_ic_type == ODM_RTL8723F)
+		configure_txpower_track_8723f(config);
+#endif
 
 }
 
@@ -231,8 +234,11 @@ odm_txpowertracking_callback_thermal_meter(
 	<Kordan> rf_calibrate_info.rega24 will be initialized when ODM HW configuring, but MP configures with para files. */
 #if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
 #if (MP_DRIVER == 1)
+#ifndef RTL8723F_SUPPORT
 	cali_info->rega24 = 0x090e1317;
 #endif
+#endif
+
 #elif (DM_ODM_SUPPORT_TYPE & ODM_CE)
 	if (*(dm->mp_mode) == true)
 		cali_info->rega24 = 0x090e1317;
@@ -754,7 +760,7 @@ odm_txpowertracking_callback_thermal_meter(
 	cali_info->tx_powercount = 0;
 }
 
-#if (RTL8822C_SUPPORT == 1 || RTL8814B_SUPPORT == 1)
+#if (RTL8822C_SUPPORT == 1 || RTL8814B_SUPPORT == 1  || RTL8723F_SUPPORT == 1)
 void
 odm_txpowertracking_new_callback_thermal_meter(void *dm_void)
 {
@@ -878,7 +884,9 @@ odm_txpowertracking_new_callback_thermal_meter(void *dm_void)
 			cali_info->thermal_value_lck = thermal_value[RF_PATH_A];
 
 			/*Use RTLCK, so close power tracking driver LCK*/
-			if ((!(dm->support_ic_type & ODM_RTL8814A)) && (!(dm->support_ic_type & ODM_RTL8822B))) {
+			if ((!(dm->support_ic_type & ODM_RTL8814A)) &&
+			    (!(dm->support_ic_type & ODM_RTL8822B)) &&
+			    (!(dm->support_ic_type & ODM_RTL8723F))) {
 				if (c.phy_lc_calibrate)
 					(*c.phy_lc_calibrate)(dm);
 			} else
@@ -1033,26 +1041,39 @@ odm_iq_calibrate(
 	if (*dm->is_fcs_mode_enable)
 		return;
 #endif
+	if (dm->is_linked) {
+		RF_DBG(dm, DBG_RF_IQK,
+		       "interval=%d ch=%d prech=%d scan=%s rfk_f =%s\n",
+		       dm->linked_interval, *dm->channel,  dm->pre_channel,
+		       *dm->is_scan_in_process == TRUE ? "TRUE":"FALSE",
+		       iqk_info->rfk_forbidden == TRUE ? "TRUE":"FALSE");
 
-	if ((dm->is_linked) && (!iqk_info->rfk_forbidden)) {
-		RF_DBG(dm, DBG_RF_IQK, "interval=%d ch=%d prech=%d scan=%s\n", dm->linked_interval,
-		       *dm->channel,  dm->pre_channel, *dm->is_scan_in_process == TRUE ? "TRUE":"FALSE");
+		if (iqk_info->rfk_forbidden)	{
+			RF_DBG(dm, DBG_RF_IQK, "return by rfk_forbidden\n");
+			return;
+		}
+
+		if (*dm->is_scan_in_process)	{
+			RF_DBG(dm, DBG_RF_IQK, "return by is_scan_in_process\n");
+			return;
+		}
 
 		if (*dm->channel != dm->pre_channel) {
 			dm->pre_channel = *dm->channel;
 			dm->linked_interval = 0;
 		}
 
-		if ((dm->linked_interval < 3) && (!*dm->is_scan_in_process))
+		if (dm->linked_interval < 3)
 			dm->linked_interval++;
 
 		if (dm->linked_interval == 2)
 			PHY_IQCalibrate(adapter, false);
-	} else
+	} else {
 		dm->linked_interval = 0;
-
-		RF_DBG(dm, DBG_RF_IQK, "<=%s interval=%d ch=%d prech=%d scan=%s\n", __FUNCTION__, dm->linked_interval,
-			*dm->channel,  dm->pre_channel, *dm->is_scan_in_process == TRUE?"TRUE":"FALSE");
+		RF_DBG(dm, DBG_RF_IQK, "is_linked =%s, interval =%d\n",
+		       dm->is_linked == TRUE ? "TRUE":"FALSE",
+		       dm->linked_interval);		
+	}
 }
 
 void phydm_rf_init(struct dm_struct		*dm)

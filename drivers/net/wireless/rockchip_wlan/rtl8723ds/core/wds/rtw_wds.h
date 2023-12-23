@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -50,6 +49,17 @@ void rtw_wds_pathtbl_unregister(_adapter *adapter);
 
 void rtw_wds_path_flush_by_nexthop(struct sta_info *sta);
 #endif /* CONFIG_AP_MODE */
+
+struct rtw_wds_gptr_table {
+	rtw_rhashtable rhead;
+};
+
+void dump_wgptr(void *sel, _adapter *adapter);
+bool rtw_rx_wds_gptr_check(_adapter *adapter, const u8 *src);
+void rtw_tx_wds_gptr_update(_adapter *adapter, const u8 *src);
+void rtw_wds_gptr_expire(_adapter *adapter);
+int rtw_wds_gptr_tbl_init(_adapter *adapter);
+void rtw_wds_gptr_tbl_unregister(_adapter *adapter);
 
 #endif /* __RTW_WDSH_ */
 

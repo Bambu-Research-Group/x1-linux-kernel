@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -153,7 +152,7 @@ void phydm_set_l2h_th_ini_win(void *dm_void)
 
 	 /*@ [New Format: JGR3]IGI-idx:45 = RSSI:35 = -65dBm*/
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
-		if (dm->support_ic_type & ODM_RTL8822C)
+		if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8723F))
 			dm->th_l2h_ini = 45;
 		else if (dm->support_ic_type & ODM_RTL8814B)
 			dm->th_l2h_ini = 49;
@@ -330,7 +329,7 @@ void phydm_set_l2h_th_ini(void *dm_void)
 
 	 /*@ [New Format: JGR3]IGI-idx:45 = RSSI:35 = -65dBm*/
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
-		if (dm->support_ic_type & ODM_RTL8822C)
+		if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8723F))
 			dm->th_l2h_ini = 45;
 		else if (dm->support_ic_type & ODM_RTL8814B)
 			dm->th_l2h_ini = 49;
@@ -399,10 +398,8 @@ void phydm_adaptivity_debug(void *dm_void, char input[][16], u32 *_used,
 	s8 h2l_diff = 0;
 
 	for (i = 0; i < 5; i++) {
-		if (input[i + 1]) {
-			PHYDM_SSCANF(input[i + 1], DCMD_HEX, &dm_value[i]);
-			input_idx++;
-		}
+		PHYDM_SSCANF(input[i + 1], DCMD_HEX, &dm_value[i]);
+		input_idx++;
 	}
 	if (strcmp(input[1], help) == 0) {
 		PDM_SNPF(out_len, used, output + used, out_len - used,
@@ -812,7 +809,15 @@ void phydm_adaptivity(void *dm_void)
 	    adapt->switch_th_l2h_ini_in_band)
 		phydm_set_l2h_th_ini_win(dm);
 #endif
-
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+	if (!adapt->debug_mode) {
+		if (*dm->edcca_mode == PHYDM_EDCCA_ADAPT_MODE &&
+		    dm->carrier_sense_enable)
+			phydm_set_l2h_th_ini_carrier_sense(dm);
+		else if (*dm->edcca_mode == PHYDM_EDCCA_ADAPT_MODE)
+			phydm_set_l2h_th_ini(dm);
+	}
+#endif
 	PHYDM_DBG(dm, DBG_ADPTVTY, "%s ====>\n", __func__);
 	PHYDM_DBG(dm, DBG_ADPTVTY, "mode = %s, debug_mode = %d\n",
 		  (*dm->edcca_mode ?

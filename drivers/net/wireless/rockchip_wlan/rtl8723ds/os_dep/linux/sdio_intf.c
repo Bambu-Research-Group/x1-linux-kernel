@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2019 Realtek Corporation.
@@ -30,6 +29,10 @@
 #ifdef CONFIG_RTL8822C
 #include <rtl8822c_hal.h>
 #endif /* CONFIG_RTL8822C */
+
+#ifdef CONFIG_RTL8723F
+#include <rtl8723f_hal.h>	/* rtl8723fs_set_hal_ops() */
+#endif /* CONFIG_RTL8723F */
 
 #ifdef CONFIG_PLATFORM_INTEL_BYT
 #ifdef CONFIG_ACPI
@@ -90,11 +93,18 @@ static const struct sdio_device_id sdio_ids[] = {
 #ifdef CONFIG_RTL8821C
 	{SDIO_DEVICE(0x024C, 0xB821), .driver_data = RTL8821C},
 	{SDIO_DEVICE(0x024C, 0xC821), .driver_data = RTL8821C},
+	{SDIO_DEVICE(0x024C, 0x8733), .driver_data = RTL8821C}, /* 8733AS */
+	{SDIO_DEVICE(0x024C, 0xC80C), .driver_data = RTL8821C}, /* 8821CSH-VQ */
 #endif
 
 #ifdef CONFIG_RTL8822C
 	{SDIO_DEVICE(0x024c, 0xC822), .class = SDIO_CLASS_WLAN, .driver_data = RTL8822C},
 	{SDIO_DEVICE(0x024c, 0xD821), .class = SDIO_CLASS_WLAN, .driver_data = RTL8822C}, /* 8821DS */
+#endif
+
+#ifdef CONFIG_RTL8723F
+	{SDIO_DEVICE(0x024c, 0xB733), .class = SDIO_CLASS_WLAN, .driver_data = RTL8723F}, /* SDIO+UART */
+	{SDIO_DEVICE(0x024c, 0xB73A), .class = SDIO_CLASS_WLAN, .driver_data = RTL8723F}, /* SDIO multi */
 #endif
 
 #if defined(RTW_ENABLE_WIFI_CONTROL_FUNC) /* temporarily add this to accept all sdio wlan id */
@@ -638,6 +648,12 @@ static void rtw_decide_chip_type_by_device_id(struct dvobj_priv *dvobj, const st
 	}
 #endif
 
+#if defined(CONFIG_RTL8723F)
+	if (dvobj->chip_type == RTL8723F) {
+		dvobj->HardwareType = HARDWARE_TYPE_RTL8723FS;
+		RTW_INFO("CHIP TYPE: RTL8723F\n");
+	}
+#endif
 }
 
 static struct dvobj_priv *sdio_dvobj_init(struct sdio_func *func, const struct sdio_device_id  *pdid)
@@ -758,6 +774,11 @@ u8 rtw_set_hal_ops(PADAPTER padapter)
 #if defined(CONFIG_RTL8822C)
 	if (rtw_get_chip_type(padapter) == RTL8822C)
 		rtl8822cs_set_hal_ops(padapter);
+#endif
+
+#if defined(CONFIG_RTL8723F)
+	if (rtw_get_chip_type(padapter) == RTL8723F)
+		rtl8723fs_set_hal_ops(padapter);
 #endif
 
 	if (rtw_hal_ops_check(padapter) == _FAIL)
@@ -1170,8 +1191,8 @@ extern int pm_netdev_close(struct net_device *pnetdev, u8 bnormal);
 
 static int rtw_sdio_suspend(struct device *dev)
 {
-	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct dvobj_priv *psdpriv;
+	struct sdio_func *func = NULL;
+	struct dvobj_priv *psdpriv = NULL;
 	struct pwrctrl_priv *pwrpriv = NULL;
 	_adapter *padapter = NULL;
 	struct debug_priv *pdbgpriv = NULL;
@@ -1183,7 +1204,11 @@ static int rtw_sdio_suspend(struct device *dev)
 #endif
 
 	if (dev == NULL)
-		goto exit;
+		return ret;
+
+	func = dev_to_sdio_func(dev);
+	if(func == NULL)
+		return ret;
 
 	psdpriv = sdio_get_drvdata(func);
 	if (psdpriv == NULL)
@@ -1205,6 +1230,7 @@ static int rtw_sdio_suspend(struct device *dev)
 
 	ret = rtw_suspend_common(padapter);
 
+exit:
 #ifdef CONFIG_RTW_SDIO_PM_KEEP_POWER
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34))
 	/* Android 4.0 don't support WIFI close power */
@@ -1225,7 +1251,7 @@ static int rtw_sdio_suspend(struct device *dev)
 	}
 #endif
 #endif
-exit:
+
 	return ret;
 }
 int rtw_resume_process(_adapter *padapter)
@@ -1286,7 +1312,7 @@ static int rtw_sdio_resume(struct device *dev)
 
 }
 
-static int rtw_drv_entry(void)
+static int __init rtw_drv_entry(void)
 {
 	int ret = 0;
 
@@ -1310,6 +1336,10 @@ static int rtw_drv_entry(void)
 	sdio_drvpriv.drv_registered = _TRUE;
 	rtw_suspend_lock_init();
 	rtw_drv_proc_init();
+	rtw_nlrtw_init();
+#ifdef CONFIG_PLATFORM_CMAP_INTFS
+	cmap_intfs_init();
+#endif
 	rtw_ndev_notifier_register();
 	rtw_inetaddr_notifier_register();
 
@@ -1318,6 +1348,10 @@ static int rtw_drv_entry(void)
 		sdio_drvpriv.drv_registered = _FALSE;
 		rtw_suspend_lock_uninit();
 		rtw_drv_proc_deinit();
+		rtw_nlrtw_deinit();
+#ifdef CONFIG_PLATFORM_CMAP_INTFS
+		cmap_intfs_deinit();
+#endif
 		rtw_ndev_notifier_unregister();
 		rtw_inetaddr_notifier_unregister();
 		RTW_INFO("%s: register driver failed!!(%d)\n", __FUNCTION__, ret);
@@ -1334,7 +1368,7 @@ exit:
 	return ret;
 }
 
-static void rtw_drv_halt(void)
+static void __exit rtw_drv_halt(void)
 {
 	RTW_PRINT("module exit start\n");
 
@@ -1348,6 +1382,10 @@ static void rtw_drv_halt(void)
 
 	rtw_suspend_lock_uninit();
 	rtw_drv_proc_deinit();
+	rtw_nlrtw_deinit();
+#ifdef CONFIG_PLATFORM_CMAP_INTFS
+	cmap_intfs_deinit();
+#endif
 	rtw_ndev_notifier_unregister();
 	rtw_inetaddr_notifier_unregister();
 
@@ -1371,60 +1409,5 @@ int rtw_sdio_set_power(int on)
 }
 #endif /* CONFIG_PLATFORM_INTEL_BYT */
 
-#include "rtw_version.h"
-#include <linux/rfkill-wlan.h>
-extern int get_wifi_chip_type(void);
-extern int rockchip_wifi_power(int on);
-extern int rockchip_wifi_set_carddetect(int val);
-
-int rockchip_wifi_init_module_rtkwifi(void)
-{
-//#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
-//    int type = get_wifi_chip_type();
-//    if (type < WIFI_AP6XXX_SERIES || type == WIFI_ESP8089) return 0;
-//#endif
-    printk("\n");
-    printk("=======================================================\n");
-    printk("==== Launching Wi-Fi driver! (Powered by Rockchip) ====\n");
-    printk("=======================================================\n");
-    printk("Realtek 8723DS SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", DRIVERVERSION);
-
-    rockchip_wifi_power(1);
-    rockchip_wifi_set_carddetect(1);    
-
-    return rtw_drv_entry();
-}
-
-void rockchip_wifi_exit_module_rtkwifi(void)
-{
-//#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
-//    int type = get_wifi_chip_type();
-//    if (type < WIFI_AP6XXX_SERIES || type == WIFI_ESP8089) return;
-//#endif
-    printk("\n");
-    printk("=======================================================\n");
-    printk("==== Dislaunching Wi-Fi driver! (Powered by Rockchip) ====\n");
-    printk("=======================================================\n");
-    printk("Realtek 8723DS SDIO WiFi driver (Powered by Rockchip,Ver %s) init.\n", DRIVERVERSION);
-
-    rtw_drv_halt();
-
-    rockchip_wifi_set_carddetect(0);
-    rockchip_wifi_power(0);
-}
-
-#ifdef CONFIG_WIFI_BUILD_MODULE
-module_init(rockchip_wifi_init_module_rtkwifi);
-module_exit(rockchip_wifi_exit_module_rtkwifi);
-#else
-#ifdef CONFIG_WIFI_LOAD_DRIVER_WHEN_KERNEL_BOOTUP
-late_initcall(rockchip_wifi_init_module_rtkwifi);
-module_exit(rockchip_wifi_exit_module_rtkwifi);
-#else
-EXPORT_SYMBOL(rockchip_wifi_init_module_rtkwifi);
-EXPORT_SYMBOL(rockchip_wifi_exit_module_rtkwifi);
-#endif
-#endif
-//module_init(rtw_drv_entry);
-//module_exit(rtw_drv_halt);
-
+module_init(rtw_drv_entry);
+module_exit(rtw_drv_halt);

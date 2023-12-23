@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -54,9 +53,10 @@ void rtl8723d_sreset_xmit_status_check(_adapter *padapter)
 
 					/* padapter->Wifi_Error_Status = WIFI_TX_HANG; */
 					RTW_INFO("%s tx hang %s\n", __FUNCTION__,
-						(rtw_odm_adaptivity_needed(padapter)) ? "ODM_BB_ADAPTIVITY" : "");
+						!adapter_to_rfctl(padapter)->adaptivity_en ? "" :
+							rtw_edcca_mode_str(rtw_get_edcca_mode(adapter_to_dvobj(padapter), pHalData->current_band_type)));
 
-					if (!rtw_odm_adaptivity_needed(padapter))
+					if (!adapter_to_rfctl(padapter)->adaptivity_en)
 						rtw_hal_sreset_reset(padapter);
 				}
 			}

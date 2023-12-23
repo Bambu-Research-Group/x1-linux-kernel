@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -44,7 +43,8 @@
 	RTL8814B_SUPPORT)
 #define NUM 4
 #elif (RTL8822B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 ||\
-	RTL8812F_SUPPORT == 1 ||	RTL8197G_SUPPORT == 1)
+	RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1 ||\
+	RTL8723F_SUPPORT == 1)
 #define NUM 2
 #else
 #define NUM 1
@@ -86,7 +86,7 @@ struct dm_iqk_info {
 	RTL8195B_SUPPORT == 1 || RTL8198F_SUPPORT == 1 ||\
 	RTL8814B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 ||\
 	RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1 ||\
-	RTL8710C_SUPPORT == 1)
+	RTL8710C_SUPPORT == 1 || RTL8723F_SUPPORT == 1)
 	u32 iqk_channel[2];
 	boolean iqk_fail_report[2][NUM][2]; /*channel/path/TRX(TX:0, RX:1) */
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_real*/
@@ -139,11 +139,18 @@ struct dm_iqk_info {
 	u32 gs1_xym[2][6];
 	u32 gs2_xym[2][6];
 	u32 rxk1_xym[2][6];
+	u32 nbtxk_1b38[2];
+	u32 nbrxk_1b3c[2];
 #endif
 #if (RTL8710C_SUPPORT == 1 || RTL8197G_SUPPORT == 1 )
 	u32 txxy[2][2];
 	u32 rxxy[2][2];
 #endif
+#if (RTL8723F_SUPPORT == 1)
+	u32 txxy[2][2];
+	u32 rxxy[2][2][2];
+#endif
+
 #endif
 };
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -928,7 +927,7 @@ odm_txpowertracking_init(
 {
 	struct dm_struct		*dm = (struct dm_struct *)dm_void;
 #if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
-	if (!(dm->support_ic_type & (ODM_RTL8814A | ODM_RTL8822B | ODM_IC_11N_SERIES)))
+	if (!(dm->support_ic_type & (ODM_RTL8814A | ODM_RTL8822B | ODM_RTL8814B | ODM_IC_11N_SERIES)))
 		return;
 #endif
 
@@ -988,6 +987,24 @@ get_swing_index(
 	return i;
 }
 
+s8
+get_txagc_default_index(
+	void *dm_void
+)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	s8 tmp;
+
+#if RTL8814B_SUPPORT
+	if (dm->support_ic_type == ODM_RTL8814B) {
+		tmp = (s8)(odm_get_bb_reg(dm, R_0x18a0, 0x7f) & 0xff);
+		if (tmp & BIT(6))
+			tmp = tmp | 0x80;
+		return tmp;
+	} else
+		return 0;
+#endif
+}
 
 void
 odm_txpowertracking_thermal_meter_init(
@@ -996,9 +1013,12 @@ odm_txpowertracking_thermal_meter_init(
 {
 	struct dm_struct		*dm = (struct dm_struct *)dm_void;
 	struct dm_rf_calibration_struct	*cali_info = &(dm->rf_calibrate_info);
+	struct _hal_rf_ *rf = &dm->rf_table;
+	struct _halrf_tssi_data *tssi = &rf->halrf_tssi_data;
 	struct rtl8192cd_priv		*priv = dm->priv;
 	u8 p;
 	u8 default_swing_index;
+	u8 i;
 #if (RTL8197F_SUPPORT == 1 || RTL8822B_SUPPORT == 1 || RTL8192F_SUPPORT == 1)
 	if ((GET_CHIP_VER(priv) == VERSION_8197F) || (GET_CHIP_VER(priv) == VERSION_8822B) ||(GET_CHIP_VER(priv) == VERSION_8192F))
 		default_swing_index = get_swing_index(dm);
@@ -1088,10 +1108,27 @@ odm_txpowertracking_thermal_meter_init(
 
 
 #if RTL8188E_SUPPORT
-	cali_info->default_cck_index = 20;	/* -6 dB */
-#elif RTL8192E_SUPPORT
-	cali_info->default_cck_index = 8;	/* -12 dB */
+	if (GET_CHIP_VER(priv) == VERSION_8188E) {
+		cali_info->default_cck_index = 20;	/* -6 dB */
+	}
 #endif
+
+#if RTL8192E_SUPPORT
+	if (GET_CHIP_VER(priv) == VERSION_8192E) {
+		cali_info->default_cck_index = 8;	/* -12 dB */
+	}
+#endif
+
+#if RTL8814B_SUPPORT
+	if (GET_CHIP_VER(priv) == VERSION_8814B) {
+		cali_info->default_txagc_index = get_txagc_default_index(dm);
+
+		for (i = 0; i < MAX_PATH_NUM_8814B; i++)
+			tssi->tssi_trk_txagc_offset[i] =
+				cali_info->default_txagc_index;
+	}
+#endif
+
 	cali_info->bb_swing_idx_ofdm_base = cali_info->default_ofdm_index;
 	cali_info->bb_swing_idx_cck_base = cali_info->default_cck_index;
 	dm->rf_calibrate_info.CCK_index = cali_info->default_cck_index;

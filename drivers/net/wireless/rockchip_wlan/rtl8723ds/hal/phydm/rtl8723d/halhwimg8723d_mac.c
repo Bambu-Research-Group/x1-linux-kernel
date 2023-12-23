@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017 Realtek Corporation.
@@ -212,7 +211,7 @@ u32 array_mp_8723d_mac_reg[] = {
 		0x642, 0x00000040,
 		0x643, 0x00000000,
 		0x652, 0x000000C8,
-		0x66A, 0x000000B0,
+		0x66A, 0x000000A0,
 		0x66E, 0x00000005,
 		0x700, 0x00000021,
 		0x701, 0x00000043,
@@ -288,7 +287,7 @@ odm_read_and_config_mp_8723d_mac_reg(struct dm_struct *dm)
 u32
 odm_get_version_mp_8723d_mac_reg(void)
 {
-		return 40;
+		return 42;
 }
 
 #endif /* end of HWIMG_SUPPORT*/

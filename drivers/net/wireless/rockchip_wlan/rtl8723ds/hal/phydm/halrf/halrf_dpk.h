@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2017  Realtek Corporation.
@@ -48,7 +47,7 @@
 #if (RTL8198F_SUPPORT == 1 || RTL8814B_SUPPORT == 1)
 #define KPATH 4
 #elif (RTL8192F_SUPPORT == 1 || RTL8197F_SUPPORT == 1 ||RTL8197G_SUPPORT == 1 ||\
-	RTL8822C_SUPPORT == 1 || RTL8812F_SUPPORT == 1)
+	RTL8822C_SUPPORT == 1 || RTL8812F_SUPPORT == 1 || RTL8723F_SUPPORT == 1)
 #define KPATH 2
 #else
 #define KPATH 1
@@ -117,7 +116,7 @@ struct dm_dpk_info {
 	u8	dpk_5g_result[KPATH][GROUP_5G];			/*path/group*/
 	u8	pwsf_5g[KPATH][GROUP_5G];			/*path/group*/
 	u32	lut_5g[KPATH][GROUP_5G][64];			/*path/group/LUT data*/
-	u32	lut_2g[KPATH][GROUP_5G][64];			/*path/group/LUT data*/
+	u32	lut_2g[KPATH][3][64];			/*path/group/LUT data*/
 	u8	rxbb[4];			/*path/group*/
 	u8	txbb[4];			/*path/group*/
 	u8	tx_gain;
@@ -135,6 +134,19 @@ struct dm_dpk_info {
 	u8	pwsf_5g[KPATH][GROUP_5G];			/*path/group*/
 	u32	lut_5g_even[KPATH][GROUP_5G][16];		/*path/group/LUT data*/
 	u32	lut_5g_odd[KPATH][GROUP_5G][16];		/*path/group/LUT data*/
+#endif
+
+#if(RTL8723F_SUPPORT == 1)
+	u8	one_shot_cnt;
+	u8	dpk_current_path;
+	u8	thermal_init[KPATH];
+	u8	dpk_delta_thermal[KPATH];		/*path*/
+	s8	last_offset[KPATH];			/*path*/
+	u8	txagc[KPATH];				/*path*/
+	u8	tssi_txagc[KPATH][2];			/*path/0:txagc_rf,1:tssi_offset*/
+	u16	digital_bbgain[KPATH];			/*path*/
+	u16	pwsf[KPATH];				/*path*/
+
 #endif
 };
 
