@@ -30,6 +30,7 @@
 #include <linux/file.h>
 #include <linux/sysfs.h>
 #include <linux/iotrace.h>
+#include <asm/div64.h>
 
 #define IOTRACE_MAGIC (0xdeadb12f)
 #define ONE_RECORD_MSG_LEN (26)
@@ -309,7 +310,8 @@ static int iotrace_parse_dt(struct platform_device *pdev)
 	gctx.header = (struct iotrace_header*)start;
 	gctx.init_header.magic = IOTRACE_MAGIC;
 	gctx.init_header.start = (uint32_t)start + sizeof(iotrace_header);
-	gctx.part_total_cnt = (IOTRACE_ALIGN(resource_size(&res) - sizeof(iotrace_header))) / ONE_RECORD_LEN / 4;
+	uint32_t res_sz = IOTRACE_ALIGN((uint32_t)resource_size(&res) - sizeof(iotrace_header));
+	gctx.part_total_cnt = res_sz / ONE_RECORD_LEN / 4;
 	gctx.init_header.end = gctx.init_header.start + gctx.part_total_cnt * ONE_RECORD_LEN * 4;
 
 	for (i = 0; i < 4; i++) {
@@ -395,6 +397,7 @@ void iotrace_add_record(int flags, volatile const void *ptr, uint32_t value)
 	rec->addr = phy_addr;
 	rec->value = value;
 }
+EXPORT_SYMBOL(iotrace_add_record);
 
 static int current_records(struct platform_device *pdev, struct iotrace_context *ctx) {
 	struct iotrace_header *header;
