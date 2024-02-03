@@ -628,6 +628,8 @@ static struct optee *optee_probe(struct device_node *np)
 	optee_supp_init(&optee->supp);
 	optee->memremaped_shm = memremaped_shm;
 	optee->pool = pool;
+	
+	optee_disable_shm_cache_unmapped(optee);
 
 	optee_enable_shm_cache(optee);
 

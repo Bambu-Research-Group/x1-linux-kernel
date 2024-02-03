@@ -840,11 +840,11 @@ dtb-$(CONFIG_ARCH_RENESAS) += \
 	r8a7794-silk.dtb \
 	r9a06g032-rzn1d400-db.dtb \
 	sh73a0-kzm9g.dtb
-dtb-$(CONFIG_ARCH_ROCKCHIP) += \
-	rv1126-bl-p001-v5.dtb \
-	rv1126-n2-v1.dtb \
-	rv1126-c13-v1.dtb \
-	rv1126-c13-v2.dtb
+#dtb-$(CONFIG_ARCH_ROCKCHIP) += \
+#	rv1126-bl-p001-v5.dtb \
+#	rv1126-n2-v1.dtb \
+#	rv1126-c13-v1.dtb \
+#	rv1126-c13-v2.dtb
 dtb-$(CONFIG_ARCH_S3C24XX) += \
 	s3c2416-smdk2416.dtb
 dtb-$(CONFIG_ARCH_S3C64XX) += \

@@ -417,7 +417,7 @@ void optee_enable_shm_cache(struct optee *optee)
  *			      in OP-TEE
  * @optee:	main service struct
  */
-void optee_disable_shm_cache(struct optee *optee)
+static void __optee_disable_shm_cache(struct optee *optee, bool is_mapped)
 {
 	struct optee_call_waiter w;
 
@@ -436,6 +436,11 @@ void optee_disable_shm_cache(struct optee *optee)
 		if (res.result.status == OPTEE_SMC_RETURN_OK) {
 			struct tee_shm *shm;
 
+			if (!is_mapped) {
+				pr_info("unmapped a mapping %08lx %08lx\n", res.result.shm_upper32, res.result.shm_lower32);
+				continue;
+			}
+
 			shm = reg_pair_to_ptr(res.result.shm_upper32,
 					      res.result.shm_lower32);
 			tee_shm_free(shm);
@@ -445,6 +450,15 @@ void optee_disable_shm_cache(struct optee *optee)
 	}
 	optee_cq_wait_final(&optee->call_queue, &w);
 }
+
+void optee_disable_shm_cache(struct optee *optee) {
+	__optee_disable_shm_cache(optee, true);
+}
+
+void optee_disable_shm_cache_unmapped(struct optee *optee) {
+	__optee_disable_shm_cache(optee, false);
+}
+
 
 #define PAGELIST_ENTRIES_PER_PAGE				\
 	((OPTEE_MSG_NONCONTIG_PAGE_SIZE / sizeof(u64)) - 1)
