@@ -205,7 +205,7 @@
 /*
  * choose your ic chip type of focaltech
  */
-#define FTS_CHIP_TYPE   _FT8057S
+#define FTS_CHIP_TYPE   _FT8006S_AA
 
 /******************* Enables *********************/
 /*********** 1 to enable, 0 to disable ***********/
@@ -214,7 +214,7 @@
  * show debug log info
  * enable it for debug, disable it for release
  */
-#define FTS_DEBUG_EN                            1
+#define FTS_DEBUG_EN                            0
 
 /*
  * Linux MultiTouch Protocol
@@ -311,19 +311,19 @@
  * define your own fw_file, the sample one to be replaced is invalid
  * NOTE: if FTS_GET_MODULE_NUM > 1, it's the fw corresponding with FTS_VENDOR_ID
  */
-#define FTS_UPGRADE_FW_FILE                     "include/firmware/Normal_FT8057_Kusai_B18_CTC_6P56_M1_V0x01_D0x00_20230609_app.i"
+#define FTS_UPGRADE_FW_FILE                     "include/firmware/fw_sample.i"
 
 /*
  * if FTS_GET_MODULE_NUM >= 2, fw corrsponding with FTS_VENDOR_ID2
  * define your own fw_file, the sample one is invalid
  */
-#define FTS_UPGRADE_FW2_FILE                    "include/firmware/Normal_FT8057_Kusai_B18_CTC_6P56_M1_V0x01_D0x00_20230609_app.i"
+#define FTS_UPGRADE_FW2_FILE                    "include/firmware/fw_sample.i"
 
 /*
  * if FTS_GET_MODULE_NUM >= 3, fw corrsponding with FTS_VENDOR_ID3
  * define your own fw_file, the sample one is invalid
  */
-#define FTS_UPGRADE_FW3_FILE                    "include/firmware/Normal_FT8057_Kusai_B18_CTC_6P56_M1_V0x01_D0x00_20230609_app.i"
+#define FTS_UPGRADE_FW3_FILE                    "include/firmware/fw_sample.i"
 
 /*********************************************************/
 
