@@ -147,8 +147,10 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	    !host->retune_crc_disable &&
 	    (err == -EILSEQ || (mrq->sbc && mrq->sbc->error == -EILSEQ) ||
 	    (mrq->data && mrq->data->error == -EILSEQ) ||
-	    (mrq->stop && mrq->stop->error == -EILSEQ)))
+	    (mrq->stop && mrq->stop->error == -EILSEQ))) {
 		mmc_retune_needed(host);
+		dev_info(host->parent, "flagging retune needed because mmc_request_done CRC error");
+	}
 
 	if (err && cmd->retries && mmc_host_is_spi(host)) {
 		if (cmd->resp[0] & R1_SPI_ILLEGAL_COMMAND)
@@ -502,8 +504,10 @@ void mmc_cqe_request_done(struct mmc_host *host, struct mmc_request *mrq)
 
 	/* Flag re-tuning needed on CRC errors */
 	if ((mrq->cmd && mrq->cmd->error == -EILSEQ) ||
-	    (mrq->data && mrq->data->error == -EILSEQ))
+	    (mrq->data && mrq->data->error == -EILSEQ)) {
 		mmc_retune_needed(host);
+		dev_info(host->parent, "flagging retune needed because mmc_cqe_request_done CRC error");
+	}
 
 	trace_mmc_request_done(host, mrq);
 

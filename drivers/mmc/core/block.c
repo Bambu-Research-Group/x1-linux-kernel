@@ -852,7 +852,7 @@ static int mmc_blk_part_switch_pre(struct mmc_card *card,
 			if (ret)
 				return ret;
 		}
-		mmc_retune_pause(card->host);
+//		mmc_retune_pause(card->host);
 	}
 
 	return ret;
