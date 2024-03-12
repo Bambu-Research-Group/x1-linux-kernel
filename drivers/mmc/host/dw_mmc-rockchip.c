@@ -67,7 +67,7 @@ static void dw_mci_rk3288_set_ios(struct dw_mci *host, struct mmc_ios *ios)
 	}
 
 	/* Make sure we use phases which we can enumerate with */
-	if (!IS_ERR(priv->sample_clk))
+	if (!IS_ERR(priv->sample_clk) && ios->timing <= MMC_TIMING_SD_HS)
 		clk_set_phase(priv->sample_clk, priv->default_sample_phase);
 
 	/*
@@ -166,17 +166,22 @@ static int dw_mci_v2_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 		degree = degrees[i] + priv->last_degree + 90;
 		degree = degree % 360;
 		clk_set_phase(priv->sample_clk, degree);
-		if (!mmc_send_tuning(mmc, opcode, NULL))
-			break;
+		if (!mmc_send_tuning(mmc, opcode, NULL)) {
+			degree = (degree + 180) % 360;
+			clk_set_phase(priv->sample_clk, degree);
+			if (!mmc_send_tuning(mmc, opcode, NULL)) {
+				break;
+			}
+		}
 	}
 
 	if (i == ARRAY_SIZE(degrees)) {
-		dev_warn(host->dev, "All phases bad!");
+		dev_warn(host->dev, "v2 All phases bad!");
 		return -EIO;
 	}
 
 done:
-	//dev_info(host->dev, "Successfully tuned phase to %d\n", degree);
+	dev_info(host->dev, "v2 Successfully tuned phase to %d\n", degree);
 	priv->last_degree = degree;
 	return 0;
 }
@@ -198,6 +203,8 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	int longest_range_len = -1;
 	int longest_range = -1;
 	int middle_phase;
+	
+	dev_info(host->dev, "start dw_mci_rk3288_execute_tuning\n");
 
 	if (IS_ERR(priv->sample_clk)) {
 		dev_err(host->dev, "Tuning clock (sample_clk) not defined.\n");
