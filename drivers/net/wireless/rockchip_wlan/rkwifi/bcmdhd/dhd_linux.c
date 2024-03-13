@@ -7599,7 +7599,7 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	/* Interface up check for built-in type */
 	if (!dhd_download_fw_on_driverload && dhd->pub.up == FALSE) {
-		DHD_ERROR(("%s: Interface is down \n", __FUNCTION__));
+		/* DHD_ERROR(("%s: Interface is down \n", __FUNCTION__)); */
 		DHD_PERIM_UNLOCK(&dhd->pub);
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		return OSL_ERROR(BCME_NOTUP);
