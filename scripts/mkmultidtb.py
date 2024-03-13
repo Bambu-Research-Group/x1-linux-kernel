@@ -48,7 +48,7 @@ dts_path = 'arch/arm/boot/dts/'
 
 def main():
     if (len(sys.argv) < 2) or (sys.argv[1] == '-h'):
-        print __doc__
+        print(__doc__)
         sys.exit(2)
 
     BOARD = sys.argv[1]
@@ -67,7 +67,7 @@ def main():
         shutil.copyfile(ori_file, new_file)
         target_dtb_list += ' ' + new_file
 
-    print target_dtb_list
+    print(target_dtb_list)
     os.system('scripts/resource_tool logo.bmp logo_kernel.bmp ' + target_dtb_list)
     os.system('rm ' + target_dtb_list)
 

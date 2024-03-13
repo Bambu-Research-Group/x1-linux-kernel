@@ -202,6 +202,7 @@ static void esd_check_handler(struct work_struct *work)
 
 	ret = esd_check_value_read(esd_power_cmd, &value);
 	if (ret && (value != esd_power_value)) {
+        pr_err("expect esd_power_value is %#x, actual vaule is %#x", esd_power_value, value);
 		if (count == 3) {
 			count = 0;
 			schedule_work(&reset_work);

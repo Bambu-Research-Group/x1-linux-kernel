@@ -1,0 +1,818 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+/dts-v1/;
+
+/*
+ * how to add a new panel
+ * 		add "panel@N" node in dsi, such as panel@3
+ *		  specify status = "disabled"; adc = <adc_of_version>;
+ *		  specify timing3
+ *		  specify port in panel@3-ports: reg = <1>(fixed)
+ * 		  specify panel3_in_dsi in panel@3-ports, note!!: must match with port in dsi-ports
+ *		  specify panel@3-reg = <0>(fixed, mean input device)
+ *		  specify esd_power_value and esd_power_cmd, the value used in panel-simple.c
+ *		add port@3 in dsi-ports
+ * 		  specify reg, note!!: must different from other ports, and should be [1, 5](kernel driver only support max 5)
+*/
+
+#include "rv1126.dtsi"
+#include "rv1126-n2-base.dtsi"
+/ {
+	model = "v01 Bamboo Lab 3D Printer N2 Board";
+	compatible = "rockchip,rv1126";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7 board=N2 hw=v1";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sleep {
+			gpios = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_SLEEP>;
+			label = "GPIO Key Sleep";
+			linux,input-type = <1>;
+			gpio-key,wakeup = <1>;
+			debounce-interval = <100>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&sleep_pin>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		work_led {
+			gpios = <&gpio2 RK_PD7 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "timer";
+		};
+
+		sleep_led {
+			gpios = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+
+		sys_led {
+			gpios = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+
+		mc_enable {
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+
+		th_low_power_enable {
+			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+	};
+
+	vdd_vepu_npu: vdd_vepus_npu {
+		status = "okay";
+		compatible = "pwm-regulator";
+		rockchip,pwm_id = <4>;
+		rockchip,pwm_voltage = <975000>; 	// 0.824V, used in uboot stage
+		pwms = <&pwm4 0 25000 1>;			// pwm_id, channel, cycle(ns), polarity
+		regulator-name = "vdd_vepu_npu";
+		regulator-min-microvolt = <718000>; // 0.718V
+		regulator-max-microvolt = <975000>; // 0.975V
+		regulator-init-microvolt = <975000>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vcc3v3_sys>;
+	};
+
+	vdd_arm: vdd_arm {
+		status = "okay";
+		compatible = "pwm-regulator";
+		rockchip,pwm_voltage = <1100000>;
+		pwms = <&pwm5 0 25000 1>;
+		regulator-name = "vdd_arm";
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-init-microvolt = <1100000>;
+		regulator-always-on;
+		regulator-boot-on;
+		pwm-supply = <&vcc3v3_sys>;
+	};
+
+	vcc_ddr: vcc_ddr {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_ddr";
+		regulator-always-on;
+		regulator-boot-on;
+		// regulator-min-microvolt = <5000000>; // not set in p001-v3
+		// regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc3v3_sys: vcc3v3_sys {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc_buck5: vcc_buck5 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_buck5";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <2200000>;
+		regulator-max-microvolt = <2200000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc_0v8: vcc_0v8 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_0v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc1v8_pmu: vcc1v8_pmu {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc1v8_pmu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vdd0v8_pmu: vdd0v8_pmu {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vdd0v8_pmu";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc_1v8: vcc_1v8 {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc_dovdd: vcc_dovdd {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_dovdd";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc_dvdd: vcc_dvdd {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_dvdd";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc_avdd: vcc_avdd {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_avdd";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vccio_sd: vccio_sd {
+		status = "okay";
+		compatible = "regulator-gpio";
+		regulator-name = "vccio_sd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
+		states = <3300000 0
+			  1800000 1>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc3v3_sd: vcc3v3_sd {
+		status = "okay";
+		compatible = "regulator-fixed";
+		gpio = <&gpio2 RK_PD5 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_pwr>;
+		regulator-name = "vcc3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
+	vcc5v0_host: vcc5v0_host {
+		status = "okay";
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_host";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	vcc_3v3: vcc_3v3 {
+		status = "okay";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "vcc_3v3";
+		vin-supply = <&vcc3v3_sys>;
+	};
+};
+
+&pinctrl {
+	lcd_rst {
+		lcd_rst_gpio: lcd-rst-gpio {
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	touth_panel {
+		pinctrl_tlsc6x: pinctrl_tlsc6x {
+			rockchip,pins =
+				/* tp rst */
+				<2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
+				/* tp int */
+				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	buttons {
+		sleep_pin: sleep_pin {
+			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	leds {
+		work_led_pin: work_led_pin {
+			rockchip,pins = <2 RK_PD7 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		sleep_led_pin: sleep_led_pin{
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		sys_led_pin: sys_led_pin {
+			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		vccio_sd_ctrl: vccio_sd_ctrl{
+			rockchip,pins = <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	sdmmc-pwr {
+		/omit-if-no-ref/
+		sdmmc_pwr: sdmmc-pwr {
+			rockchip,pins = <2 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	mcu_ctrls {
+		mc_enable_pin: mc_enable_pin{
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		th_low_power_enable_pin: th_low_power_enable_pin{
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+};
+
+&pwm4 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm4m0_pins_pull_down>;
+};
+
+&pwm5 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm5m0_pins_pull_down>;
+};
+
+&pwm9 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm9m1_pins_pull_down>;
+};
+
+&backlight {
+	status = "okay";
+	default-on;
+	// compatible = "gpio-backlight";
+	// gpios = <&gpio2 RK_PA7 GPIO_ACTIVE_LOW>;
+	compatible = "pwm-backlight";
+	pwms = <&pwm9 0 25000 0>;
+	pwm-names = "backlight";
+	enable-gpios = <&gpio1 RK_PD7 GPIO_ACTIVE_HIGH>;
+};
+
+&dsi {
+	status = "okay";
+
+	rockchip,lane-rate = <480>;
+
+	panel@1 {
+		status = "okay";
+		tp-node = <&tlsc6x_ts>;
+		id-regs-len = <3>;
+		id-regs = <0xda 0xdb 0xdc>;
+		id-targets = <0xab 0xcd 0xef>; // fake
+		adc = <853>;			// 1.5v = 853
+		esd_power_value = <0>; // todo
+		esd_power_cmd = <0>;   // todo
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		power-supply = <&vcc_1v8>;
+		prepare-delay-ms = <5>;
+		reset-delay-ms = <1>;
+		init-delay-ms = <120>;
+		disable-delay-ms = <10>;
+		unprepare-delay-ms = <5>;
+
+		reset-gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_rst_gpio>;
+
+		width-mm = <62>;
+		height-mm = <110>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+				  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <2>;
+
+		panel-init-sequence = [
+			39 00 06 F0 55 aa 52 08 00
+			39 00 03 F6 5A 87
+			15 00 02 c1 3f
+			15 00 02 c2 0e
+			15 00 02 c6 f8
+			15 00 02 c9 10
+			15 00 02 cd 25
+			39 00 04 87 04 03 66
+			15 00 02 f8 8A
+			15 00 02 AC 65
+			15 00 02 a7 47
+			15 00 02 A0 DD
+			39 00 05 FA 08 08 00 00
+			39 00 05 86 99 A3 A3 51
+			15 00 02 A3 2e
+			39 00 04 FD 28 3c 00
+			15 00 02 71 48
+			15 00 02 72 48
+			39 00 03 73 00 04
+			15 00 02 97 EE
+			15 00 02 9A 68
+			15 00 02 9B 38
+			39 00 03 82 40 40
+			15 00 02 B1 10
+			39 00 03 7A 13 1a
+			39 00 03 7B 13 1a
+			39 00 21 6d 00 1D 10 0F 08 1F 1E 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1e 1E 1F 01 0A 09 1D 00
+			39 00 09 60 18 05 2E 7A 18 02 2E 7A
+			39 00 09 63 18 02 2E 7A 18 04 2E 7A
+			39 00 11 64 18 04 03 58 03 03 18 02 03 5A 03 03 2E 7A 2E 7A
+			39 00 11 67 18 01 03 5B 03 03 18 03 03 59 03 03 2E 7A 2E 7A
+			39 00 08 69 14 22 14 22 44 22 08
+			39 00 35 D1 00 00 00 20 00 53 00 76 00 93 00 C0 00 E5 01 1E 01 4D 01 98 01 D4 02 32 02 7E 02 80 02 C5 03 11 03 40 03 82 03 A5 03 BC 03 CB 03 DF 03 E9 03 F6 03 FD 03 FF
+			39 00 35 D2 00 00 00 20 00 53 00 76 00 93 00 C0 00 E5 01 1E 01 4D 01 98 01 D4 02 32 02 7E 02 80 02 C5 03 11 03 40 03 82 03 A5 03 BC 03 CB 03 DF 03 E9 03 F6 03 FD 03 FF
+			39 00 35 D3 00 00 00 20 00 53 00 76 00 93 00 C0 00 E5 01 1E 01 4D 01 98 01 D4 02 32 02 7E 02 80 02 C5 03 11 03 40 03 82 03 A5 03 BC 03 CB 03 DF 03 E9 03 F6 03 FD 03 FF
+			39 00 35 D4 00 00 00 20 00 53 00 76 00 93 00 C0 00 E5 01 1E 01 4D 01 98 01 D4 02 32 02 7E 02 80 02 C5 03 11 03 40 03 82 03 A5 03 BC 03 CB 03 DF 03 E9 03 F6 03 FD 03 FF
+			39 00 35 D5 00 00 00 20 00 53 00 76 00 93 00 C0 00 E5 01 1E 01 4D 01 98 01 D4 02 32 02 7E 02 80 02 C5 03 11 03 40 03 82 03 A5 03 BC 03 CB 03 DF 03 E9 03 F6 03 FD 03 FF
+			39 00 35 D6 00 00 00 20 00 53 00 76 00 93 00 C0 00 E5 01 1E 01 4D 01 98 01 D4 02 32 02 7E 02 80 02 C5 03 11 03 40 03 82 03 A5 03 BC 03 CB 03 DF 03 E9 03 F6 03 FD 03 FF
+			05 78 01 11
+			05 64 01 29
+			];
+
+		panel-exit-sequence = [
+			39 00 06 F0 55 aa 52 08 00
+			23 00 03 F6 5a 87
+			23 00 02 C2 ce
+			23 00 02 C3 cd
+			23 00 02 C6 fc
+			23 00 02 C5 03
+			23 00 02 CD 64
+			23 00 02 C4 ff
+			23 00 02 C9 cd
+			23 14 02 6C 60
+			23 00 02 B1 00
+			39 14 05 FA 7F 00 00 00
+			23 0A 02 6C 50
+			23 32 02 28 00
+			23 14 02 10 00
+			23 00 04 FD aa aa 0a
+			23 00 03 FE 6a 0a
+			23 00 03 78 2a aa
+			23 00 03 92 17 08
+			23 00 03 77 aa 2a
+			23 00 03 76 aa aa
+			23 00 02 84 00
+			23 00 03 78 2b ba
+			23 00 02 89 73
+			23 00 02 88 3A
+			23 00 02 85 B0
+			23 00 03 76 eb aa
+			23 00 02 94 80
+			23 00 04 87 04 07 30
+			23 00 02 93 27
+			23 00 02 AF 02
+			];
+
+		display-timings {
+			native-mode = <&timing1>;
+
+			timing1: timing1 {
+				clock-frequency = <29007000>;
+				hactive = <480>;
+				vactive = <854>;
+				hfront-porch = <30>;
+				hsync-len = <10>;
+				hback-porch = <30>;
+				vfront-porch = <8>;
+				vsync-len = <2>;
+				vback-porch = <15>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				panel1_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel1>;
+				};
+			};
+		};
+	};
+
+	panel@2 {
+		status = "okay";
+		tp-node = <&tlsc6x_ts>;
+		id-regs-len = <3>;
+		id-regs = <0xda 0xdb 0xdc>;
+		id-targets = <0xab 0xcd 0xef>; // fake
+		adc = <1024>;				// 1.8v = 1024
+		esd_power_value = <0>; // todo
+		esd_power_cmd = <0>;   // todo
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		power-supply = <&vcc_1v8>;
+		prepare-delay-ms = <5>;
+		reset-delay-ms = <1>;
+		init-delay-ms = <120>;
+		disable-delay-ms = <10>;
+		unprepare-delay-ms = <5>;
+
+		reset-gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_rst_gpio>;
+
+		width-mm = <62>;
+		height-mm = <110>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+				  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <2>;
+
+		panel-init-sequence = [
+			39 00 06 FF 77 01 00 00 13
+			15 00 02 EF 08
+			39 00 06 FF 77 01 00 00 10
+			39 00 03 C0 E9 03
+			39 00 03 C1 11 02
+			39 00 03 C2 07 06
+			15 00 02 CC 18
+			39 00 11 B0 00 0D 14 0D 10 05 02 08 08 1E 05 13 11 A3 29 18
+			39 00 11 B1 00 0C 14 0C 10 05 03 08 07 20 05 13 11 A4 29 18
+			39 00 06 FF 77 01 00 00 11
+			15 00 02 B0 6C
+			15 00 02 B1 4D
+			15 00 02 B2 89
+			15 00 02 B3 80
+			15 00 02 B5 4E
+			15 00 02 B7 85
+			15 00 02 B8 20
+			39 00 03 B9 00 13
+			15 00 02 C0 09
+			15 00 02 C1 78
+			15 00 02 C2 78
+			15 0A 02 D0 88
+			39 00 04 E0 00 00 02
+			39 00 0C E1 08 00 0A 00 07 00 09 00 00 33 33
+			39 00 0E E2 00 00 00 00 00 00 00 00 00 00 00 00 00
+			39 00 05 E3 00 00 33 33
+			39 00 03 E4 44 44
+			39 00 11 E5 0E 60 A0 A0 10 60 A0 A0 0A 60 A0 A0 0C 60 A0 A0
+			39 00 05 E6 00 00 33 33
+			39 00 03 E7 44 44
+			39 00 11 E8 0D 60 A0 A0 0F 60 A0 A0 09 60 A0 A0 0B 60 A0 A0
+			39 00 08 EB 02 01 E4 E4 44 00 40
+			39 00 03 EC 02 01
+			39 00 11 ED AB 89 76 54 01 FF FF FF FF FF FF 10 45 67 98 BA
+			39 00 07 EF 08 08 08 45 3F 54
+			39 00 06 FF 77 01 00 00 13
+			39 00 03 E8 00 0E
+			39 00 06 FF 77 01 00 00 00
+			05 78 01 11
+			39 00 06 FF 77 01 00 00 13
+			39 0A 03 E8 00 0C
+			39 00 03 E8 00 00
+			39 00 06 FF 77 01 00 00 00
+			05 00 01 29
+			05 78 01 11
+			05 64 01 29
+			];
+
+		panel-exit-sequence = [
+			05 14 01 28
+			05 32 01 10
+		];
+
+		display-timings {
+			native-mode = <&timing2>;
+
+			timing2: timing2 {
+				clock-frequency = <28000000>; // 28M
+				hactive = <480>;	 // HAdr
+				vactive = <854>;	 // VAdr
+				hfront-porch = <16>; // HFP
+				hsync-len = <8>;
+				hback-porch = <16>;  // HBP
+				vfront-porch = <20>; // VFP
+				vsync-len = <8>;
+				vback-porch = <20>;  // VBP
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@2 {
+				reg = <1>;
+				panel2_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel2>;
+				};
+			};
+		};
+	};
+
+	panel@3 {
+		status = "okay";
+		tp-node = <&tlsc6x_ts>;
+		id-regs-len = <3>;
+		id-regs = <0xda 0xdb 0xdc>;
+		id-targets = <0xab 0xcd 0xef>; // fake
+		adc = <341>;				// 0.6v = 341
+		esd_power_value = <0>; // todo
+		esd_power_cmd = <0>;   // todo
+		compatible = "simple-panel-dsi";
+		reg = <0>;
+		backlight = <&backlight>;
+		power-supply = <&vcc_1v8>;
+		prepare-delay-ms = <5>;
+		reset-delay-ms = <1>;
+		init-delay-ms = <120>;
+		disable-delay-ms = <10>;
+		unprepare-delay-ms = <5>;
+
+		reset-gpios = <&gpio2 RK_PA2 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_rst_gpio>;
+
+		width-mm = <62>;
+		height-mm = <110>;
+
+		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+				  MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
+		dsi,format = <MIPI_DSI_FMT_RGB888>;
+		dsi,lanes = <2>;
+
+		panel-init-sequence = [
+			39 00 06 F0 55 AA 52 08 00
+			39 00 03 F6 5A 87
+			15 00 02 C1 3F
+			15 00 02 C9 10
+			15 00 02 CD 25
+			15 00 02 AC 45
+			15 00 02 F8 8A
+			15 00 02 A7 47
+			15 00 02 A0 FF
+			39 00 05 86 99 A3 A3 61
+			39 00 05 FA 08 08 00 04
+			15 00 02 A3 6E
+			39 00 04 FD 28 3C 00
+			15 00 02 9A C0
+			15 00 02 9B 40
+			39 00 03 82 3E 3E
+			15 00 02 B1 90
+			39 00 03 7A 0F 13
+			39 00 03 7B 0F 13
+			15 00 02 6B 07
+			39 00 08 69 14 22 14 22 44 22 08
+
+			39 00 21 6D 00 1F 19 1A 0C 0A 10 0E 02 08 1E 1E 1E 1E 1E 1E 1E 1E 1E 1E 1E 1E 07 01 0D 0F 09 0B 1A 19 1F 00
+			39 00 09 60 28 0C 7a 7a 28 0B 7a 7a
+			39 00 09 63 28 0A 7a 7a 28 09 7a 7A
+			39 00 11 64 28 08 03 5f 03 03 28 07 03 5F 03 03 7A 7A 7A 7A
+			39 00 11 65 28 06 03 60 03 03 28 05 03 61 03 03 7A 7A 7A 7A
+			39 00 11 66 28 04 03 62 03 03 28 03 03 63 03 03 7A 7A 7A 7A
+			39 00 11 67 28 02 03 64 03 03 28 01 03 65 03 03 7A 7A 7A 7A
+			39 00 0E 68 00 08 1B 08 1A 68 68 08 1B 08 1A 68 68
+
+			39 00 35 D1 00 00 00 15 00 5F 00 7B 00 99 00 C1 00 E5 01 1D 01 47 01 95 01 D1 02 30 02 7D 02 7F 02 C6 03 15 03 47 03 8A 03 A8 03 BA 03 CA 03 DD 03 E0 03 EB 03 F0 03 FF
+			39 00 35 D2 00 00 00 15 00 5F 00 7B 00 99 00 C1 00 E5 01 1D 01 47 01 95 01 D1 02 30 02 7D 02 7F 02 C6 03 15 03 47 03 8A 03 A8 03 BA 03 CA 03 DD 03 E0 03 EB 03 F0 03 FF
+			39 00 35 D3 00 00 00 15 00 5F 00 7B 00 99 00 C1 00 E5 01 1D 01 47 01 95 01 D1 02 30 02 7D 02 7F 02 C6 03 15 03 47 03 8A 03 A8 03 BA 03 CA 03 DD 03 E0 03 EB 03 F0 03 FF
+			39 00 35 D4 00 00 00 15 00 5F 00 7B 00 99 00 C1 00 E5 01 1D 01 47 01 95 01 D1 02 30 02 7D 02 7F 02 C6 03 15 03 47 03 8A 03 A8 03 BA 03 CA 03 DD 03 E0 03 EB 03 F0 03 FF
+			39 00 35 D5 00 00 00 15 00 5F 00 7B 00 99 00 C1 00 E5 01 1D 01 47 01 95 01 D1 02 30 02 7D 02 7F 02 C6 03 15 03 47 03 8A 03 A8 03 BA 03 CA 03 DD 03 E0 03 EB 03 F0 03 FF
+			39 00 35 D6 00 00 00 15 00 5F 00 72 00 99 00 C1 00 E5 01 1D 01 47 01 95 01 D1 02 30 02 7D 02 7F 02 C7 03 15 03 47 03 8A 03 A8 03 BA 03 CA 03 DD 03 E0 03 EB 03 F0 03 FF
+
+			05 78 01 11
+			05 00 01 29
+			05 00 01 2C
+		];
+
+		panel-exit-sequence = [
+			05 14 01 28
+			05 32 01 10
+		];
+
+		display-timings {
+			native-mode = <&timing3>;
+
+			timing3: timing3 {
+				clock-frequency = <29000000>; // 29M
+				hactive = <480>;	 // HAdr
+				vactive = <854>;	 // VAdr
+				hfront-porch = <25>; // HFP
+				hsync-len = <10>;	 // HS
+				hback-porch = <20>;  // HBP
+				vfront-porch = <12>; // VFP
+				vsync-len = <8>;     // VS
+				vback-porch = <24>;  // VBP
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@2 {
+				reg = <1>;
+				panel3_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel3>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port {
+			dsi_in_vop: endpoint {
+				remote-endpoint = <&vop_out_dsi>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel1: endpoint {
+				remote-endpoint = <&panel1_in_dsi>;
+			};
+		};
+
+		port@2 {
+			reg = <2>;
+			dsi_out_panel2: endpoint {
+				remote-endpoint = <&panel2_in_dsi>;
+			};
+		};
+
+		port@3 {
+			reg = <3>;
+			dsi_out_panel3: endpoint {
+				remote-endpoint = <&panel3_in_dsi>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	ov2740: ov2740@36 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "ovti,ov2740";
+		reg = <0x36>;
+
+		clocks = <&cru CLK_MIPICSI_OUT>;
+		clock-names = "xvclk";
+
+		power-domains = <&power RV1126_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		power-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio1 RK_PD4 GPIO_ACTIVE_LOW>;
+		vsync-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+
+		avdd-supply = <&vcc_avdd>;
+		dovdd-supply = <&vcc_dovdd>;
+		dvdd-supply = <&vcc_dvdd>;
+
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "YT-RV1109-2-V1";
+		rockchip,camera-module-lens-name = "40IR-2MP-F20";
+		port {
+			reg = <0x7010 0x100>;
+			ucam_out0: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-0 = <&i2c5m2_xfer>;
+	clock-frequency = <400000>;
+
+	tlsc6x_ts: tlsc6x_ts@2e {
+		status = "disa";
+		compatible = "tlsc6x,tlsc6x_ts";
+		reg = <0x2e>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tlsc6x>;
+		tlsc6x,irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_EDGE_FALLING>;
+		tlsc6x,reset-gpio = <&gpio2 RK_PB2 GPIO_ACTIVE_LOW>;
+		TP_MAX_X = <480>;
+		TP_MAX_Y = <854>;
+	};
+};
+
+&uart1 {
+	status = "okay";
+	pinctrl-names = "default";
+	dma-names = "tx", "rx";
+	pinctrl-0 = <&uart1m0_xfer>;
+};

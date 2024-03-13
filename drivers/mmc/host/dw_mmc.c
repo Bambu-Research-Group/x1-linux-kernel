@@ -1928,7 +1928,7 @@ static int dw_mci_data_complete(struct dw_mci *host, struct mmc_data *data)
 
 	if (status & DW_MCI_DATA_ERROR_FLAGS) {
 		if (status & SDMMC_INT_DRTO) {
-			data->error = -ETIMEDOUT;
+			data->error = -EILSEQ;
 		} else if (status & SDMMC_INT_DCRC) {
 			data->error = -EILSEQ;
 		} else if (status & SDMMC_INT_EBE) {
@@ -1940,7 +1940,7 @@ static int dw_mci_data_complete(struct dw_mci *host, struct mmc_data *data)
 				 * will be exaggerated in PIO mode.
 				 */
 				data->bytes_xfered = 0;
-				data->error = -ETIMEDOUT;
+				data->error = -EILSEQ;
 			} else if (host->dir_status ==
 					DW_MCI_RECV_STATUS) {
 				data->error = -EILSEQ;
