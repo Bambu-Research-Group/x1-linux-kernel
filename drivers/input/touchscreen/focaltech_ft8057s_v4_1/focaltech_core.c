@@ -2124,3 +2124,93 @@ int fts_ts_remove_entry(struct fts_ts_data *ts_data)
     FTS_FUNC_EXIT();
     return 0;
 }
+
+/*****************************************************************************
+* TP Driver
+*****************************************************************************/
+
+static int fts_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+    int ret = 0;
+    struct fts_ts_data *ts_data = NULL;
+
+    FTS_INFO("Touch Screen(I2C BUS) driver prboe...");
+    if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+        FTS_ERROR("I2C not supported");
+        return -ENODEV;
+    }
+
+    /* malloc memory for global struct variable */
+    ts_data = (struct fts_ts_data *)kzalloc(sizeof(*ts_data), GFP_KERNEL);
+    if (!ts_data) {
+        FTS_ERROR("allocate memory for fts_data fail");
+        return -ENOMEM;
+    }
+
+    fts_data = ts_data;
+    ts_data->client = client;
+    ts_data->dev = &client->dev;
+    ts_data->log_level = 1;
+    ts_data->fw_is_running = 0;
+    i2c_set_clientdata(client, ts_data);
+
+    ret = fts_ts_probe_entry(ts_data);
+    if (ret) {
+        FTS_ERROR("Touch Screen(I2C BUS) driver probe fail");
+        kfree_safe(ts_data);
+        return ret;
+    }
+
+    FTS_INFO("Touch Screen(I2C BUS) driver prboe successfully");
+    return 0;
+}
+
+static int fts_ts_remove(struct i2c_client *client)
+{
+    return fts_ts_remove_entry(i2c_get_clientdata(client));
+}
+
+static const struct i2c_device_id fts_ts_id[] = {
+    {FTS_DRIVER_NAME, 0},
+    {},
+};
+static const struct of_device_id fts_dt_match[] = {
+    {.compatible = "focaltech,fts", },
+    {},
+};
+MODULE_DEVICE_TABLE(of, fts_dt_match);
+
+static struct i2c_driver fts_ts_driver = {
+    .probe = fts_ts_probe,
+    .remove = fts_ts_remove,
+    .driver = {
+        .name = FTS_DRIVER_NAME,
+        .owner = THIS_MODULE,
+        .of_match_table = of_match_ptr(fts_dt_match),
+    },
+    .id_table = fts_ts_id,
+};
+
+static int __init fts_ts_init(void)
+{
+    int ret = 0;
+
+    FTS_FUNC_ENTER();
+    ret = i2c_add_driver(&fts_ts_driver);
+    if ( ret != 0 ) {
+        FTS_ERROR("Focaltech touch screen driver init failed!");
+    }
+    FTS_FUNC_EXIT();
+    return ret;
+}
+
+static void __exit fts_ts_exit(void)
+{
+    i2c_del_driver(&fts_ts_driver);
+}
+module_init(fts_ts_init);
+module_exit(fts_ts_exit);
+
+MODULE_AUTHOR("FocalTech Driver Team");
+MODULE_DESCRIPTION("FocalTech Touchscreen Driver");
+MODULE_LICENSE("GPL v2");

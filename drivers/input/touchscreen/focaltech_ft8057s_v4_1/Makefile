@@ -14,7 +14,7 @@ focaltech_tp-y := focaltech_core.o \
 focaltech_tp-y += focaltech_flash_spi.o
 
 
-focaltech_tp-y += focaltech_spi_v2.o
+focaltech_tp-y += focaltech_i2c.o
 
 
 focaltech_tp-y += focaltech_proximity.o
