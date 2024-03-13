@@ -295,7 +295,8 @@ static void __exit fts_ts_i2c_exit(void)
     i2c_del_driver(&fts_ts_i2c_driver);
 }
 
-module_init(fts_ts_i2c_init);
+// must late_initcall this so that this happens after the display comes up
+late_initcall(fts_ts_i2c_init);
 module_exit(fts_ts_i2c_exit);
 
 MODULE_AUTHOR("FocalTech Driver Team");
