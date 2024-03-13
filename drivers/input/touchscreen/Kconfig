@@ -779,6 +779,14 @@ config TOUCHSCREEN_TLSC6X
 		  Say Y here if you have tlsc6x touch panel.
 		  If unsure, say N.
 
+config TOUCHSCREEN_FTS
+	tristate "Focaltech Touchscreen"
+	default m
+	help
+		Say Y here if you have Focaltech touch panel.
+		If unsure, say N.
+
+
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on (SH_MIGOR || COMPILE_TEST) && I2C
@@ -1387,8 +1395,6 @@ config TOUCHSCREEN_VTL_CT36X
 
 config TOUCHSCREEN_GT1X
 	tristate "GT1X touchscreens support"
-
-source "drivers/input/touchscreen/focaltech_ft8057s_v4_1/Kconfig"
 
 
 endif
