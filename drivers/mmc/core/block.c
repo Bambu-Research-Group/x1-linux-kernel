@@ -505,9 +505,16 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 	struct scatterlist sg;
 	int err;
 	unsigned int target_part;
+	static volatile int parallel = 0;
 
 	if (!card || !md || !idata)
 		return -EINVAL;
+	if(idata->rpmb){
+		parallel++;
+		if(parallel != 1){
+			dev_err(mmc_dev(card->host), "rpmb parallel r/w err\n");
+		}
+	}
 
 	/*
 	 * The RPMB accesses comes in from the character device, so we
@@ -566,13 +573,19 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 	mrq.cmd = &cmd;
 
 	err = mmc_blk_part_switch(card, target_part);
-	if (err)
+	if (err){
+		if(idata->rpmb)
+			parallel--;
 		return err;
+	}
 
 	if (idata->ic.is_acmd) {
 		err = mmc_app_cmd(card->host, card);
-		if (err)
+		if (err){
+			if(idata->rpmb)
+				parallel--;
 			return err;
+		}
 	}
 
 	if (idata->rpmb) {
@@ -591,9 +604,12 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 	    (cmd.opcode == MMC_SWITCH)) {
 		err = ioctl_do_sanitize(card);
 
-		if (err)
+		if (err){
+			if(idata->rpmb)
+				parallel--;
 			pr_err("%s: ioctl_do_sanitize() failed. err = %d",
 			       __func__, err);
+		}
 
 		return err;
 	}
@@ -603,11 +619,15 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 	if (cmd.error) {
 		dev_err(mmc_dev(card->host), "%s: cmd error %d\n",
 						__func__, cmd.error);
+		if(idata->rpmb)
+			parallel--;
 		return cmd.error;
 	}
 	if (data.error) {
 		dev_err(mmc_dev(card->host), "%s: data error %d\n",
 						__func__, data.error);
+		if(idata->rpmb)
+			parallel--;
 		return data.error;
 	}
 
@@ -645,6 +665,8 @@ static int __mmc_blk_ioctl_cmd(struct mmc_card *card, struct mmc_blk_data *md,
 		 */
 		err = card_busy_detect(card, MMC_BLK_TIMEOUT_MS, NULL);
 	}
+	if(idata->rpmb)
+		parallel--;
 
 	return err;
 }
@@ -852,7 +874,7 @@ static int mmc_blk_part_switch_pre(struct mmc_card *card,
 			if (ret)
 				return ret;
 		}
-//		mmc_retune_pause(card->host);
+		// mmc_retune_pause(card->host);
 	}
 
 	return ret;

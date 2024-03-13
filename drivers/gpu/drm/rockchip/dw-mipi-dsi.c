@@ -1472,6 +1472,26 @@ static int dw_mipi_dsi_dual_channel_probe(struct dw_mipi_dsi *dsi)
 	return 0;
 }
 
+static char panel_using[20];
+
+static ssize_t panel_using_get(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s", panel_using);
+}
+
+static DEVICE_ATTR(panel_using, S_IRUSR, panel_using_get, NULL);
+
+static void panel_sysfs_register(struct device *dev)
+{
+	int ret;
+
+	ret = device_create_file(dev, &dev_attr_panel_using);
+	if (ret) {
+		dev_err(dev, "drm suspend failed to register\n");
+	}
+}
+
 static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 			    void *data)
 {
@@ -1551,6 +1571,9 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		dsi->sub_dev.connector = &dsi->connector;
 		dsi->sub_dev.of_node = dev->of_node;
 		rockchip_drm_register_sub_dev(&dsi->sub_dev);
+
+		strncpy(panel_using, dsi->panel->dev->of_node->full_name, sizeof(panel_using));
+		DRM_DEV_INFO(dev, "set panel_using to %s", panel_using);
 	} else {
 		dsi->bridge->driver_private = &dsi->host;
 		dsi->bridge->encoder = encoder;
@@ -1755,6 +1778,8 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 		DRM_DEV_ERROR(dev, "Failed to register MIPI host: %d\n", ret);
 		return ret;
 	}
+
+	panel_sysfs_register(dev);
 
 	return component_add(&pdev->dev, &dw_mipi_dsi_ops);
 }

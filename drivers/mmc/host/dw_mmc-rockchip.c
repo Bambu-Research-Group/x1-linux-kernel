@@ -185,12 +185,12 @@ static int dw_mci_v2_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	}
 
 	if (i == ARRAY_SIZE(degrees)) {
-		dev_warn(host->dev, "All phases bad!");
+		dev_warn(host->dev, "v2 All phases bad!");
 		return -EIO;
 	}
 
 done:
-	dev_info(host->dev, "Successfully tuned phase to %d\n", degree);
+	dev_info(host->dev, "v2 Successfully tuned phase to %d\n", degree);
 	priv->last_degree = degree;
 	return 0;
 }
@@ -213,6 +213,8 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	int longest_range = -1;
 	int middle_phase, real_middle_phase;
 
+	dev_info(host->dev, "start dw_mci_rk3288_execute_tuning\n");
+
 	if (IS_ERR(priv->sample_clk)) {
 		dev_err(host->dev, "Tuning clock (sample_clk) not defined.\n");
 		return -EIO;
@@ -220,8 +222,10 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 
 	if (priv->use_v2_tuning) {
 		ret = dw_mci_v2_execute_tuning(slot, opcode);
-		if (!ret)
+		if (!ret){
+			dev_info(host->dev, "v2 tuned success\n");
 			return 0;
+		}
 		/* Otherwise we continue using fine tuning, reset ret */
 		ret = 0;
 	}
@@ -230,6 +234,12 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 			       sizeof(*ranges), GFP_KERNEL);
 	if (!ranges)
 		return -ENOMEM;
+
+	if (priv->use_v2_tuning) {
+		dev_info(host->dev, "v2 tuned error, turn to v1 tune\n");
+	}
+
+	dev_info(host->dev, "start v1 tune, priv->num_phases = %d\n", priv->num_phases);
 
 	/* Try each phase and extract good ranges */
 	for (i = 0; i < priv->num_phases; ) {
@@ -271,7 +281,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 	}
 
 	if (range_count == 0) {
-		dev_warn(host->dev, "All phases bad!");
+		dev_warn(host->dev, "v1 All phases bad!");
 		ret = -EIO;
 		goto free;
 	}
@@ -284,7 +294,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 
 	if (ranges[0].start == 0 && ranges[0].end == priv->num_phases - 1) {
 		clk_set_phase(priv->sample_clk, priv->default_sample_phase);
-		dev_info(host->dev, "All phases work, using default phase %d.",
+		dev_info(host->dev, "v1 All phases work, using default phase %d.",
 			 priv->default_sample_phase);
 		goto free;
 	}
@@ -301,7 +311,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 			longest_range = i;
 		}
 
-		dev_dbg(host->dev, "Good phase range %d-%d (%d len)\n",
+		dev_dbg(host->dev, "v1 Good phase range %d-%d (%d len)\n",
 			TUNING_ITERATION_TO_PHASE(ranges[i].start,
 						  priv->num_phases),
 			TUNING_ITERATION_TO_PHASE(ranges[i].end,
@@ -310,7 +320,7 @@ static int dw_mci_rk3288_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 		);
 	}
 
-	dev_dbg(host->dev, "Best phase range %d-%d (%d len)\n",
+	dev_dbg(host->dev, "v1 Best phase range %d-%d (%d len)\n",
 		TUNING_ITERATION_TO_PHASE(ranges[longest_range].start,
 					  priv->num_phases),
 		TUNING_ITERATION_TO_PHASE(ranges[longest_range].end,
@@ -451,7 +461,7 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	     !device_property_read_bool(&pdev->dev, "cd-gpios")) ||
 	    (device_property_read_bool(&pdev->dev, "no-sd") &&
 	     device_property_read_bool(&pdev->dev, "no-mmc")))
-		use_rpm = false;
+			use_rpm = false;
 
 	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
 	drv_data = match->data;

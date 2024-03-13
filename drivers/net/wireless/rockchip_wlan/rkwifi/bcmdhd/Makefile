@@ -25,6 +25,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                 \
 	-DMULTIPLE_SUPPLICANT -DTSQ_MULTIPLIER -DMFP -DDHD_8021X_DUMP         \
 	-DWL_EXT_IAPSTA -DWL_ESCAN                                            \
 	-DENABLE_INSMOD_NO_FW_LOAD -DDHD_UNSUPPORT_IF_CNTS                    \
+	-DENABLE_ARP_SNOOP_MODE \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd \
 	-Idrivers/net/wireless/rockchip_wlan/rkwifi/bcmdhd/include
 
